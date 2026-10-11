@@ -54,7 +54,7 @@ class D3DDetector : public VPatient, public GeoComponet {
     void ExportVoxelPositioningToCsv(const std::string& path_to_output_dir) const override;
     void ExportPositioningToTFile(const std::string& path_to_output_dir) const override;
     void ExportToGateCsv(const std::string& path_to_output_dir) const override;
-
+    std::vector<CellVoxelDescriptor> GetCellsDescriptors() const override;
     //
     std::map<std::size_t, VoxelHit> GetScoringHashedMap(const G4String& scoring_name,Scoring::Type type) const override;
 

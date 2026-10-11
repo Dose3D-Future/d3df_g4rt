@@ -11,7 +11,8 @@ PhspEvtVrtxMultiplicityTreshold = 20
 PrintProgressFrequency = 0.05
 Physics = "LowE_Penelope" #  "LowE_Livermore" "LowE_Penelope" "emstandard_opt3"
 
-GenerateCT = true
+GenerateCT = true 
+GenerateRTStruct = true
 PrimariesAnalysis = false
 NTupleAnalysis = true
 RunAnalysis = true

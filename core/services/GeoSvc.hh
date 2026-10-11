@@ -135,6 +135,9 @@ class GeoSvc : public TomlConfigurable{
   void WritePatientToDicomCT();
 
   ///
+  void WritePatientToRTStruct();
+
+  ///
   void WriteWorldToGdml(); 
 
   ///
