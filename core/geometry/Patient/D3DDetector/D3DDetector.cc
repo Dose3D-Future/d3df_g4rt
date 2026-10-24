@@ -393,27 +393,33 @@ std::vector<CellVoxelDescriptor> D3DDetector::GetCellsDescriptors() const {
 
   auto run_collections = ControlPoint::GetRunCollectionNames();
   if (run_collections.empty()) {
-      WARN_GEO("D3DDetector::GetCellsDescriptors:: No RunCollection found.");
-      return descriptors;
+    WARN_GEO("D3DDetector::GetCellsDescriptors:: No RunCollection found.");
+    return descriptors;
   }
-
   const auto& run_collection = run_collections.at(0);
-  auto hashed_scoring_map = GetScoringHashedMap(run_collection, Scoring::Type::Cell);
-  G4ThreeVector halfSize = D3DCell::SIZE / 2;
+  
+  for (auto* cell : m_d3d_cells) {
+    if (!cell) continue;
 
-  descriptors.reserve(hashed_scoring_map.size());
+    VPatientSD* patient_sd = cell->GetSD(); 
+    if (!patient_sd) continue;
 
-  for (const auto& scoring_volume : hashed_scoring_map) {
-      const auto& hit = scoring_volume.second;
-      
-      CellVoxelDescriptor desc;
-      desc.label = hit.GetLabel();
-      desc.center = hit.GetCentre();
-      desc.halfLength = halfSize;
+    auto* sv = patient_sd->GetRunCollectionReferenceScoringVolume(run_collection);
+    if(!sv) continue;
+    
+    CellVoxelDescriptor desc;
+    desc.label = cell->GetName();
+    desc.contourPoints = sv->GetOuterShellVoxelsCenters(); 
 
-      descriptors.emplace_back(std::move(desc));
-  }
-  return descriptors;
+    desc.halfLength = G4ThreeVector(
+      (sv->GetSizeX() / sv->m_nVoxelsX) / 2.0,
+      (sv->GetSizeY() / sv->m_nVoxelsY) / 2.0,
+      (sv->GetSizeZ() / sv->m_nVoxelsZ) / 2.0
+    );
+
+    descriptors.emplace_back(std::move(desc));
+    }
+    return descriptors;
 }
 ////////////////////////////////////////////////////////////////////////////////
 ///

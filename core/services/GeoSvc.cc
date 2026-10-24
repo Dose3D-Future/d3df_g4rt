@@ -562,7 +562,7 @@ void GeoSvc::WritePatientToRTStruct() {
         for (const auto& cell : gc->GetCellsDescriptors()) {
             cells.push_back({
                 cell.label,
-                cell.center,
+                cell.contourPoints,
                 cell.halfLength
             });
         }

@@ -102,12 +102,8 @@ class RtStructSvc:
         print(f"Processing {len(cells_list)} cells into RT-Struct...")
         for idx, cell in enumerate(cells_list, start=1):
             label = cell["label"]
-            cx, cy, cz = cell["center"]
             dx, dy, dz = cell["halflength"]
-
-            x_min, x_max = cx - dx, cx + dx
-            y_min, y_max = cy - dy, cy + dy
-            z_min, z_max = cz - dz, cz + dz
+            voxel_centers = cell["contourPoints"]
 
             ss_roi = Dataset()
             ss_roi.ROINumber = idx
@@ -124,24 +120,38 @@ class RtStructSvc:
             for ct in ct_datasets:
                 pos = [float(x) for x in ct.ImagePositionPatient]
                 slice_z = pos[2]
-                if z_min <= slice_z <= z_max:
-                    c_item = Dataset()
-                    c_item.ContourGeometricType = "CLOSED_PLANAR"
-                    
-                    c_item.ContourData = [
-                        x_min, y_min, slice_z,
-                        x_max, y_min, slice_z,
-                        x_max, y_max, slice_z,
-                        x_min, y_max, slice_z
-                    ]
-                    c_item.NumberOfContourPoints = 4
+                intersecting_voxels = [
+                    pt for pt in voxel_centers 
+                    if (pt[2] - dz) <= slice_z <= (pt[2] + dz)
+                ]
+                if not intersecting_voxels:
+                    continue
+                min_cx = min(pt[0] for pt in intersecting_voxels)
+                max_cx = max(pt[0] for pt in intersecting_voxels)
+                min_cy = min(pt[1] for pt in intersecting_voxels)
+                max_cy = max(pt[1] for pt in intersecting_voxels)
 
-                    ref_slice = Dataset()
-                    ref_slice.ReferencedSOPClassUID = ct.SOPClassUID
-                    ref_slice.ReferencedSOPInstanceUID = ct.SOPInstanceUID
-                    c_item.ContourImageSequence = [ref_slice]
+                x_min = min_cx - dx
+                x_max = max_cx + dx
+                y_min = min_cy - dy
+                y_max = max_cy + dy
 
-                    roi_contour.ContourSequence.append(c_item)
+                c_item = Dataset()
+                c_item.ContourGeometricType = "CLOSED_PLANAR"
+                c_item.ContourData = [
+                    x_min, y_min, slice_z,
+                    x_max, y_min, slice_z,
+                    x_max, y_max, slice_z,
+                    x_min, y_max, slice_z
+                ]
+                c_item.NumberOfContourPoints = 4
+
+                ref_slice = Dataset()
+                ref_slice.ReferencedSOPClassUID = ct.SOPClassUID
+                ref_slice.ReferencedSOPInstanceUID = ct.SOPInstanceUID
+                c_item.ContourImageSequence = [ref_slice]
+
+                roi_contour.ContourSequence.append(c_item)
 
             ds.ROIContourSequence.append(roi_contour)
 

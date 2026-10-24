@@ -50,7 +50,7 @@ enum class EMlcModel {
 ///
 struct CellVoxelDescriptor {
     std::string label;
-    G4ThreeVector center;
+    std::vector<G4ThreeVector> contourPoints;
     G4ThreeVector halfLength;
 };
 

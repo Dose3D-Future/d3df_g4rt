@@ -332,16 +332,18 @@ public:
         for(const auto& cell : cells){
           py::dict cell_dict;
           cell_dict["label"] = cell.label;
-          cell_dict["center"] = py::make_tuple(
-            cell.center.x(),
-            cell.center.y(),
-            cell.center.z()
-          );
+
           cell_dict["halflength"] = py::make_tuple(
             cell.halfLength.x(),
             cell.halfLength.y(),
             cell.halfLength.z()
           );
+          py::list py_centers;
+          for(const auto& pt: cell.contourPoints){
+            py_centers.append(py::make_tuple(pt.x(), pt.y(), pt.z()));
+          }
+          cell_dict["contourPoints"] = py_centers;
+
           py_cells.append(cell_dict);
         }
         m_py_rtstruct.attr("create_rtstruct_from_cells")(ct_series_path, py_cells);
