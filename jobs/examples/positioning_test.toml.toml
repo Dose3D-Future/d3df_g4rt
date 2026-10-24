@@ -1,0 +1,41 @@
+[RunSvc]
+JobName = "Geometry_Tesy"
+BeamType = "gps"
+GpsMacFileName = "gps/gps_gamma_70keV.mac"
+PhspEvtVrtxMultiplicityTreshold = 10
+PrintProgressFrequency = 0.05
+Physics = "LowE_Penelope" 
+GenerateCT = true
+PrimariesAnalysis = false
+NTupleAnalysis = false
+RunAnalysis = true
+
+MinimalMode= true
+
+[GeoSvc]
+BuildLinac = true
+BuildPatient = true
+MlcModel="Simplified"
+
+[PatientGeometry]
+Type = "D3DDetector"
+PatientIsocentreX = 0.0   
+PatientIsocentreY = 0.0
+PatientIsocentreZ = 0.0
+EnviromentSizeX = 100.0
+EnviromentSizeY = 100.0
+EnviromentSizeZ = 100.0
+EnviromentMedium = "Usr_G4AIR20C"
+[D3DDetector_Detector]
+Positioning = "dose3d/geo/Test_Positioning_Box.csv"
+
+[D3DDetector_Cell]
+TranslationInLocalFrame = [0.00,0.00,0.00]
+Medium = "RMPS470" 
+Voxelization = [10,10,10]
+
+[RunSvc_Plan]
+nParticles = 1000     
+PlanInputFile = [
+    "plan/custom/cp5x5.dat"
+]
