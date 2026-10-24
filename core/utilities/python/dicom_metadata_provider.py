@@ -40,6 +40,8 @@ def get_dicom_metadata(base_json_path: str, run_json_path: str) -> dict:
         "SoftwareVersions": base_meta.get("SoftwareVersions", "v1.0"),
         "InstitutionName": base_meta.get("InstitutionName", "AGH WFiIS"),
         "InstitutionAddress": base_meta.get("InstitutionAddress", "Krakow"),
+        "ReferringPhysicianName": base_meta.get("ReferringPhysicianName", ""),
+        "OperatorsName": base_meta.get("OperatorsName", "Dose3D_Operator"),
         
         # --- FILE META DATA ---
         "ImplementationClassUID": base_meta.get("ImplementationClassUID", PYDICOM_IMPLEMENTATION_UID),

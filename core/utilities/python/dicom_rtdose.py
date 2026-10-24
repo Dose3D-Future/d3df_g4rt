@@ -5,26 +5,27 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import UID, ExplicitVRLittleEndian
 from pydicom.sequence import Sequence
 
-def write_rtdose(metadata, dose_grid, output_file):
+def write_rtdose(dicom_meta: dict, grid_meta: dict, dose_grid, output_file):
     """
     Create RTdose file.
     """
     dose_arr = np.array(dose_grid, copy=True)
 
-    x_unique = metadata['x_unique']
-    y_unique = metadata['y_unique']
-    z_unique = metadata['z_unique']
+    x_unique = grid_meta['x_unique']
+    y_unique = grid_meta['y_unique']
+    z_unique = grid_meta['z_unique']
 
     number_of_frames, rows, columns = dose_arr.shape
 
     ds = Dataset()
     file_meta = FileMetaDataset()
     file_meta.MediaStorageSOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.2")
-    file_meta.MediaStorageSOPInstanceUID = UID("1.2.5")
-    file_meta.ImplementationClassUID = UID('1.2.3.5')
+    file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid()
+    file_meta.ImplementationClassUID = UID(dicom_meta.get("ImplementationClassUID"))
     file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
     ds.file_meta = file_meta
+
     ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
     ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
 
@@ -54,26 +55,30 @@ def write_rtdose(metadata, dose_grid, output_file):
     scaled_dose = (normalized_dose * 65535).clip(0, 65535)
     ds.PixelData = scaled_dose.astype(np.uint16).tobytes()
 
-    ds.PatientName = metadata.get('PatientName', 'CELL DOSE')
-    ds.PatientID = metadata.get('PatientID', '121235')
-    ds.PatientBirthDate = metadata.get('PatientBirthDate', '20021208')
-    ds.PatientSex = metadata.get('PatientSex', 'F')
+    ds.PatientName = dicom_meta.get('PatientName')
+    ds.PatientID = dicom_meta.get('PatientID')
+    ds.PatientBirthDate = dicom_meta.get('PatientBirthDate')
+    ds.PatientSex = dicom_meta.get('PatientSex')
 
-    ds.FrameOfReferenceUID = UID('1.2.840.10008.15.1.1')
-    ds.PositionReferenceIndicator = "XZ"
-    ds.Manufacturer = "SIEMENS"
-    ds.StudyDate = '20241208'
-    ds.StudyTime = '161334'
-    ds.AccessionNumber = '2504966403753009'
-    ds.ReferringPhysicianName = "Physician Name"
-    ds.StudyInstanceUID = pydicom.uid.generate_uid()
-    ds.StudyID = '12123434'
+    ds.Manufacturer = dicom_meta.get('Manufacturer')
+    ds.StudyDate = dicom_meta.get('StudyDate')
+    ds.StudyTime = dicom_meta.get('StudyTime')
+    ds.AccessionNumber = dicom_meta.get('AccessionNumber')
+    ds.ReferringPhysicianName = dicom_meta.get('ReferringPhysicianName')
+    ds.OperatorsName = dicom_meta.get('OperatorsName')
+
+    ds.StudyInstanceUID = dicom_meta.get('StudyInstanceUID')
+    ds.StudyID = dicom_meta.get('StudyID')
+
+    ds.SeriesInstanceUID = dicom_meta.get('SeriesInstanceUID_RTDose')
+    ds.SeriesNumber = '2'
+
+    ds.FrameOfReferenceUID = dicom_meta.get('FrameOfReferenceUID')
+    ds.PositionReferenceIndicator = dicom_meta.get('PositionReferenceIndicator')
+
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
 
-    ds.OperatorsName = 'REMOVED'
-    ds.SeriesInstanceUID = pydicom.uid.generate_uid()
-    ds.SeriesNumber = '2'
     ds.FrameIncrementPointer = (0x3004, 0x000C)
 
     referenced_rt_plan = Dataset()
