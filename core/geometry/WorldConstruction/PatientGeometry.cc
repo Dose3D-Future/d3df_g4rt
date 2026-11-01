@@ -754,17 +754,8 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
 void PatientGeometry::ExportToRTDose(const CtTubeConfig& cfg, const std::vector<double>& dose_data, const std::string& output_file) const {
     RUNSVC_INFO("ExportToRTDose [{}]: xRes={}, yRes={}, zRes={}",
     cfg.name, cfg.xRes, cfg.yRes, cfg.zRes);
-    py::module_ dicom_rtdose = py::module::import("dicom_rtdose");
-
-    std::string runOutputDir = Service<ConfigSvc>()->GetValue<std::string>("RunSvc", "OutputDir");
-    std::string geoDir = Service<ConfigSvc>()->GetValue<std::string>("GeoSvc", "GeoDir");
-    std::string runMetadataJson = runOutputDir + "/" + geoDir + "/dicom/run_metadata.json";
-
-    // TODO repair path to patient daata
-    std::string basePatientJson = "../submodules/d3df-patients/patient/dicom/generic_patient.json";
-    py::module_ provider = py::module::import("dicom_metadata_provider");
     
-    py::dict dicom_meta = provider.attr("get_dicom_metadata")(basePatientJson, runMetadataJson);
+    py::object dicom_metadata = Service<DicomSvc>()->GetMetadata();
 
     py::dict grid_meta;
     std::vector<double> x_u, y_u, z_u;
@@ -784,5 +775,7 @@ void PatientGeometry::ExportToRTDose(const CtTubeConfig& cfg, const std::vector<
     std::vector<size_t> strides = {rows * cols * sizeof(double), cols * sizeof(double), sizeof(double)};
 
     py::array_t<double> dose_grid(shape, strides, dose_data.data());
-    dicom_rtdose.attr("write_rtdose")(dicom_meta, grid_meta, dose_grid, output_file);
+
+    py::module_ dicom_rtdose = py::module_::import("dicom_rtdose");
+    dicom_rtdose.attr("write_rtdose")(dicom_metadata, grid_meta, dose_grid, output_file);
 }
