@@ -62,6 +62,7 @@ void DicomSvc::Initialize(const std::string& planFileType){
     G4Exception("DicomSvc", "Initialize", FatalErrorInArgument, msg);
   }
 
+  InitDicomMetadata();
   // TODO refacto the following as the context specific code...
   //
   // auto rtplanMlcReader = py::module::import("dicom_rtplan_mlc");
@@ -75,6 +76,31 @@ void DicomSvc::Initialize(const std::string& planFileType){
   //              LOGSVC_INFO("DcmSvc","Found #{} control poinst for {} beam",nCP,i);
   // }
 }
+void DicomSvc::InitDicomMetadata(){
+    std::string patient_metadata_json_path = std::string(PROJECT_LOCATION_PATH) + "/submodules/d3df-patients/patient/dicom/generic_patient.json";
+    std::string app_version = std::string(G4RT_VERSION);
+    std::string patient_name = RunSvc::GetJobNameLabel();
+    
+    // TODO: Hash for patient id i study_id
+    std::string patient_id = "HASH_12345"; 
+    std::string study_id = "STUDY_001";
+
+    try {
+        py::module_ dicom_mod = py::module_::import("init_dicom_metadata");
+        
+        m_dicom_metadata = dicom_mod.attr("generate_base_metadata")(
+            patient_metadata_json_path, 
+            patient_name, 
+            patient_id, 
+            study_id,
+            app_version
+        );
+
+    } catch (const py::error_already_set& e) {
+        throw std::runtime_error(std::string("Unable to initialize Patient Metadata: ") + e.what());
+    }
+}
+
 
 void DicomSvc::SetPlanFile(const std::string& plan_file){
   m_rtplan_file = plan_file;
