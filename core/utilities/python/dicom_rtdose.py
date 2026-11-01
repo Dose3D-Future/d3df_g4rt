@@ -1,41 +1,51 @@
-import os
 import pydicom
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
-from pydicom.uid import UID, ExplicitVRLittleEndian
+from pydicom.uid import UID, ExplicitVRLittleEndian, generate_uid
 from pydicom.sequence import Sequence
 
-def write_rtdose(metadata, dose_grid, output_file):
+def write_rtdose(dicom_metadata: Dataset, grid_meta: dict, dose_grid, output_file): #new
     """
     Create RTdose file.
     """
     dose_arr = np.array(dose_grid, copy=True)
 
-    x_unique = metadata['x_unique']
-    y_unique = metadata['y_unique']
-    z_unique = metadata['z_unique']
+    x_unique = grid_meta['x_unique']
+    y_unique = grid_meta['y_unique']
+    z_unique = grid_meta['z_unique']
 
     number_of_frames, rows, columns = dose_arr.shape
+    
+    ds = dicom_metadata.copy()
 
-    ds = Dataset()
+    # --- File Meta Information ---
     file_meta = FileMetaDataset()
-    file_meta.MediaStorageSOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.2")
-    file_meta.MediaStorageSOPInstanceUID = UID("1.2.5")
-    file_meta.ImplementationClassUID = UID('1.2.3.5')
+    file_meta.MediaStorageSOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.2")  # RT Dose Storage
+    file_meta.MediaStorageSOPInstanceUID = generate_uid()
     file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
+    # Przepisanie ImplementationClassUID z bazy lub pydicom domyślny
+    if hasattr(dicom_metadata, "file_meta") and hasattr(dicom_metadata.file_meta, "ImplementationClassUID"):
+        file_meta.ImplementationClassUID = dicom_metadata.file_meta.ImplementationClassUID
+    else:
+        file_meta.ImplementationClassUID = pydicom.uid.PYDICOM_IMPLEMENTATION_UID
+
     ds.file_meta = file_meta
+    ds.is_little_endian = True
+    ds.is_implicit_VR = False
+
+    # --- SOP Instance / Class ---
     ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
     ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
 
+    # --- RTDose Specific Attributes ---
     ds.Modality = 'RTDOSE'
     ds.DoseUnits = 'GY'
     ds.Rows = rows
     ds.Columns = columns
     ds.NumberOfFrames = number_of_frames
 
-    max_dose = dose_arr.max()
-    max_dose = max(max_dose, 0)
+    max_dose = max(dose_arr.max(), 0)
     ds.DoseGridScaling = f"{max_dose / 65535:.8e}"
 
     ds.BitsAllocated = 16
@@ -54,28 +64,15 @@ def write_rtdose(metadata, dose_grid, output_file):
     scaled_dose = (normalized_dose * 65535).clip(0, 65535)
     ds.PixelData = scaled_dose.astype(np.uint16).tobytes()
 
-    ds.PatientName = metadata.get('PatientName', 'CELL DOSE')
-    ds.PatientID = metadata.get('PatientID', '121235')
-    ds.PatientBirthDate = metadata.get('PatientBirthDate', '20021208')
-    ds.PatientSex = metadata.get('PatientSex', 'F')
-
-    ds.FrameOfReferenceUID = UID('1.2.840.10008.15.1.1')
-    ds.PositionReferenceIndicator = "XZ"
-    ds.Manufacturer = "SIEMENS"
-    ds.StudyDate = '20241208'
-    ds.StudyTime = '161334'
-    ds.AccessionNumber = '2504966403753009'
-    ds.ReferringPhysicianName = "Physician Name"
-    ds.StudyInstanceUID = pydicom.uid.generate_uid()
-    ds.StudyID = '12123434'
+    # -- Series Information --
+    study_prefix = getattr(ds, "StudyInstanceUID", None)
+    ds.SeriesInstanceUID = generate_uid()
+    ds.SeriesNumber = '2'
     ds.SamplesPerPixel = 1
     ds.PhotometricInterpretation = "MONOCHROME2"
-
-    ds.OperatorsName = 'REMOVED'
-    ds.SeriesInstanceUID = pydicom.uid.generate_uid()
-    ds.SeriesNumber = '2'
     ds.FrameIncrementPointer = (0x3004, 0x000C)
 
+    # Reference to RT_Plan (TODO: connect to correct one)
     referenced_rt_plan = Dataset()
     referenced_rt_plan.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.481.5"
     referenced_rt_plan.ReferencedSOPInstanceUID = "1.2.3.4.5.6.7.8.9.0"

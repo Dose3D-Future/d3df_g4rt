@@ -754,19 +754,18 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
 void PatientGeometry::ExportToRTDose(const CtTubeConfig& cfg, const std::vector<double>& dose_data, const std::string& output_file) const {
     RUNSVC_INFO("ExportToRTDose [{}]: xRes={}, yRes={}, zRes={}",
     cfg.name, cfg.xRes, cfg.yRes, cfg.zRes);
-    py::module_ dicom_rtdose = py::module::import("dicom_rtdose");
-    py::dict metadata;
+    
+    py::object dicom_metadata = Service<DicomSvc>()->GetMetadata();
 
+    py::dict grid_meta;
     std::vector<double> x_u, y_u, z_u;
     for (int i = 0; i < cfg.xRes; ++i) x_u.push_back(cfg.initX + i * cfg.sizeX);
     for (int j = 0; j < cfg.yRes; ++j) y_u.push_back(cfg.initY + j * cfg.sizeY);
     for (int k = 0; k < cfg.zRes; ++k) z_u.push_back(cfg.initZ + k * cfg.sizeZ);
 
-    metadata["x_unique"] = x_u;
-    metadata["y_unique"] = y_u;
-    metadata["z_unique"] = z_u;
-    metadata["PatientName"] = "Kowalski^Jan";
-    metadata["PatientID"] = "123456789";
+    grid_meta["x_unique"] = x_u;
+    grid_meta["y_unique"] = y_u;
+    grid_meta["z_unique"] = z_u;
 
     size_t frames = cfg.zRes;
     size_t rows = cfg.yRes;
@@ -776,5 +775,7 @@ void PatientGeometry::ExportToRTDose(const CtTubeConfig& cfg, const std::vector<
     std::vector<size_t> strides = {rows * cols * sizeof(double), cols * sizeof(double), sizeof(double)};
 
     py::array_t<double> dose_grid(shape, strides, dose_data.data());
-    dicom_rtdose.attr("write_rtdose")(metadata, dose_grid, output_file);
+
+    py::module_ dicom_rtdose = py::module_::import("dicom_rtdose");
+    dicom_rtdose.attr("write_rtdose")(dicom_metadata, grid_meta, dose_grid, output_file);
 }
