@@ -6,6 +6,7 @@ PhspEvtVrtxMultiplicityTreshold = 10
 PrintProgressFrequency = 0.05
 Physics = "LowE_Penelope" 
 GenerateCT = true
+GenerateRTStruct = true
 PrimariesAnalysis = false
 NTupleAnalysis = false
 RunAnalysis = true
