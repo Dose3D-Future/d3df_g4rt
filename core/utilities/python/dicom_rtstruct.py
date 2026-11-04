@@ -102,7 +102,9 @@ class RtStructSvc:
         print(f"Processing {len(cells_list)} cells into RT-Struct...")
         for idx, cell in enumerate(cells_list, start=1):
             label = cell["label"]
-            dx, dy, dz = cell["halflength"]
+
+            # note Map C++(XYZ) coordinates to DICOM(XZY), 
+            dx, dz, dy = cell["halflength"]
             voxel_centers = cell["contourPoints"]
 
             ss_roi = Dataset()
@@ -122,14 +124,14 @@ class RtStructSvc:
                 slice_z = pos[2]
                 intersecting_voxels = [
                     pt for pt in voxel_centers 
-                    if (pt[2] - dz) <= slice_z <= (pt[2] + dz)
+                    if (pt[1] - dz) <= slice_z <= (pt[1] + dz)
                 ]
                 if not intersecting_voxels:
                     continue
                 min_cx = min(pt[0] for pt in intersecting_voxels)
                 max_cx = max(pt[0] for pt in intersecting_voxels)
-                min_cy = min(pt[1] for pt in intersecting_voxels)
-                max_cy = max(pt[1] for pt in intersecting_voxels)
+                min_cy = min(pt[2] for pt in intersecting_voxels)
+                max_cy = max(pt[2] for pt in intersecting_voxels)
 
                 x_min = min_cx - dx
                 x_max = max_cx + dx

@@ -333,15 +333,14 @@ public:
           py::dict cell_dict;
           cell_dict["label"] = cell.label;
 
-          // Map C++ (XYZ) to DICOM (XZY)
           cell_dict["halflength"] = py::make_tuple(
             cell.halfLength.x(),
-            cell.halfLength.z(),
-            cell.halfLength.y()
+            cell.halfLength.y(),
+            cell.halfLength.z()
           );
           py::list py_centers;
           for(const auto& pt: cell.contourPoints){
-            py_centers.append(py::make_tuple(pt.x(), pt.z(), pt.y()));
+            py_centers.append(py::make_tuple(pt.x(), pt.y(), pt.z()));
           }
           cell_dict["contourPoints"] = py_centers;
 
