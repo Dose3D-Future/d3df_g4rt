@@ -1,7 +1,10 @@
 #----------------------------------------------------------------------------
 # Setup the project
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
-project(G4rt)
+project(G4rt
+    VERSION 1.0.0 # TODO verify
+)
+
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_COLOR_MAKEFILE   ON)
@@ -35,6 +38,7 @@ endif ()
 #----------------------------------------------------------------------------
 SET(PROJECT_DATA_PATH "${PROJECT_SOURCE_DIR}/data")
 SET(PROJECT_INSTALL_DIR "/opt/g4rt")
+add_compile_definitions(G4RT_VERSION="${PROJECT_VERSION}")
 add_definitions(-DPROJECT_LOCATION_PATH=\"${PROJECT_SOURCE_DIR}\")
 add_definitions(-DPROJECT_DATA_PATH=\"${PROJECT_DATA_PATH}\")
 add_definitions(-DLHCBD1_DATA_PATH=\"/data3/TN-Dose3D/data\")
