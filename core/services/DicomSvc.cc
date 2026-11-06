@@ -1,8 +1,10 @@
 #include "DicomSvc.hh"
+#include "ConfigSvc.hh"
 #include "Services.hh"
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
+#include "Configurable.hh"
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -78,12 +80,14 @@ void DicomSvc::Initialize(const std::string& planFileType){
 }
 void DicomSvc::InitDicomMetadata(){
     std::string patient_metadata_json_path = std::string(PROJECT_LOCATION_PATH) + "/submodules/d3df-patients/patient/dicom/generic_patient.json";
-    std::string app_version = std::string(G4RT_VERSION);
-    std::string patient_name = RunSvc::GetJobNameLabel();
     
-    // TODO: Hash for patient id i study_id
-    std::string patient_id = "HASH_12345"; 
-    std::string study_id = "STUDY_001";
+    std::string app_version = std::string(G4RT_VERSION);
+    std::string patient_name = Service<ConfigSvc>()->GetValue<std::string>("PatientGeometry", "Type");
+    std::string job_name = RunSvc::GetJobNameLabel();
+    std::string patient_description = "";
+    
+    // TODO: Hash for patient id
+    std::string patient_id = "HASH_12345";
 
     try {
         py::module_ dicom_mod = py::module_::import("init_dicom_metadata");
@@ -92,8 +96,9 @@ void DicomSvc::InitDicomMetadata(){
             patient_metadata_json_path, 
             patient_name, 
             patient_id, 
-            study_id,
-            app_version
+            app_version,
+            job_name,
+            patient_description
         );
 
     } catch (const py::error_already_set& e) {
