@@ -607,10 +607,9 @@ void RunSvc::WriteGeometryData() const {
   geoSvc->WriteWorldToTFile();
   geoSvc->WriteScoringComponentsPositioningToCsv();
   geoSvc->WriteScoringComponentsPositioningToTFile(); // TODO
-  if(thisConfig()->GetValue<bool>("GenerateCT")){
-    geoSvc->WritePatientToCsvCT();
+  if(thisConfig()->GetValue<bool>("GenerateCT"))
     geoSvc->WritePatientToDicomCT();
-  }
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
