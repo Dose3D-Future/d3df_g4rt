@@ -109,8 +109,10 @@ void DicomSvc::InitDicomMetadata(){
     std::string job_name = RunSvc::GetJobNameLabel();
     std::string job_name_hash = hash_char<16>(job_name);
 
-    std::string patient_description = "";
-    
+    std::string patient_description = Service<ConfigSvc>()->GetValue<std::string>("RunSvc", "StudyDescription");
+    if (patient_description.empty())
+      patient_description = "";
+
     std::ostringstream oss;
     CtTubeConfig geometry_config = Service<PatientGeometry>()->GetCtConfig();
     oss << std::setprecision(10) 

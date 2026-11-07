@@ -60,6 +60,7 @@ void RunSvc::Configure() {
 
   RUNSVC_INFO("Service default configuration ");
   DefineUnit<std::string>("JobName");
+  DefineUnit<std::string>("StudyDescription");
 
   // MULTI RUN
   DefineUnit<std::string>("SimConfigFile");
@@ -135,6 +136,9 @@ void RunSvc::DefaultConfig(const std::string& unit) {
 
   // default simulation job name
   if (unit.compare("JobName") == 0) thisConfig()->SetTValue<std::string>(unit, std::string("ExampleJobName"));
+
+  // default StudyDescription name
+  if (unit.compare("StudyDescription") == 0) thisConfig()->SetTValue<std::string>(unit, std::string("Happy Simulation"));
 
   // default number of primary events
   if (unit.compare("NumberOfEvents") == 0) thisConfig()->SetTValue<int>(unit, int(1000));
