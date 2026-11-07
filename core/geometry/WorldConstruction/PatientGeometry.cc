@@ -77,6 +77,8 @@ void PatientGeometry::Configure() {
   Configurable::DefaultConfig();   // setup the default configuration for all defined units/parameters
   // G4cout << "[DEBUG]:: PatientGeometry:: Configure: DefaultConfig"<< G4endl;
   // Configurable::PrintConfig();
+
+  m_ctConfig = BuildCtTubeConfig();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -495,7 +497,7 @@ void PatientGeometry::ExportToCsvCT(const std::string& path_to_output_dir) const
 
     IO::CreateDirIfNotExits(path_to_output_dir);
 
-    auto cfg = BuildCtTubeConfig();
+    auto cfg = m_ctConfig;
     auto nav = CreateNavigator();
 
     INFO_GEO("ExportToCsvCT [{}]: Resolution x={}, y={}, z={}",
@@ -609,7 +611,7 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
 
     IO::CreateDirIfNotExits(outDir);
 
-    auto cfg = BuildCtTubeConfig();
+    auto cfg = m_ctConfig;
     auto nav = CreateNavigator();
 
     RUNSVC_INFO("ExportDoseToCsvCT [{}]: xRes={}, yRes={}, zRes={}",
@@ -675,6 +677,7 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
     }
     RUNSVC_INFO("VoxelLookupMap size = {}", voxelLookupMap.size());
     RUNSVC_INFO("CellHits vector size = {}", cellHits.size());
+
 
     // =====================================================
     std::vector<double> rtdose_data(cfg.zRes * cfg.yRes * cfg.xRes, 0.0);
