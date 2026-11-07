@@ -517,21 +517,9 @@ void GeoSvc::WriteWorldToTFile() {
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-void GeoSvc::WritePatientToCsvCT(){
-  auto output_dir = GetOutputDir()+"/dicom/ct_csv";
-  PatientGeometry::GetInstance()->ExportToCsvCT(output_dir);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
 void GeoSvc::WritePatientToDicomCT(){
-  // NOTE: Currently this service is using the csv data,
-  //       hence the GeoSvc::WritePatientToCsvCT has to be called!
-  auto output_dir = GetOutputDir()+"/dicom/ct_csv";
-  auto dicomSvc = Service<DicomSvc>();
-  auto dciom_dir = GetOutputDir()+"/dicom/ct_dcm";
-  dicomSvc->ExportPatientToCT(output_dir,dciom_dir);
-  IO::DeleteDirectory(output_dir); // TODO: It will be not necessery once dcm export will be independent from csv generation.
+  auto dicom_dir = GetOutputDir()+"/dicom/ct_dcm";
+  PatientGeometry::GetInstance()->ExportToDicomCT(dicom_dir);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

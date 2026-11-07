@@ -486,12 +486,12 @@ void PatientGeometry::DefineSensitiveDetector() {
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-/// This function exports the patient geometry to CSV files for CT imaging.
-/// It creates a set of CSV files for each slice of the patient and saves
-/// the position and material of each voxel in the CSV format. The CSV files
-/// are saved in the specified output directory.
+/// This function exports the patient geometry directly to DICOM format for CT imaging.
+/// It collects the position and material of each voxel in the memory and passes
+/// the data to the DICOM service. The resulting DICOM series is saved in the 
+/// specified output directory.
 ///
-void PatientGeometry::ExportToCsvCT(const std::string& path_to_output_dir) const {
+void PatientGeometry::ExportToDicomCT(const std::string& path_to_output_dir) const {
     auto patientEnv = Service<GeoSvc>()->World()->PatientEnvironment();
     if (!patientEnv) return;
 
@@ -505,27 +505,13 @@ void PatientGeometry::ExportToCsvCT(const std::string& path_to_output_dir) const
 
     INFO_GEO("ExportToCsvCT [{}]: Path={}", cfg.name, path_to_output_dir);
 
-    // ----------------------------
-    // Metadata
-    // ----------------------------
-    WriteCtMetadata(path_to_output_dir + "/ct_series_metadata.csv", cfg);
+    std::vector<std::string> voxel_materials;
+    voxel_materials.reserve(cfg.xRes * cfg.yRes * cfg.zRes);
 
-    // ----------------------------
-    // Slice-by-slice export (Y axis)
-    // ----------------------------
     for (int y = 0; y < cfg.yRes; y++) {
-
-        std::ostringstream ss;
-        ss << std::setw(4) << std::setfill('0') << (y + 1);
-
-        std::string filePath = path_to_output_dir + "/img" + ss.str() + ".csv";
-        std::ofstream file(filePath, std::ios::out);
-
-        file << "X,Y,Z,Material\n";
-
         for (int x = 0; x < cfg.xRes; x++) {
             for (int z = 0; z < cfg.zRes; z++) {
-
+                
                 G4ThreeVector pos;
                 pos.setX(cfg.initX + cfg.sizeX * x);
                 pos.setY(cfg.initY + cfg.sizeY * y);
@@ -533,16 +519,15 @@ void PatientGeometry::ExportToCsvCT(const std::string& path_to_output_dir) const
 
                 auto volume = nav->LocateGlobalPointAndSetup(pos);
                 auto material = volume->GetLogicalVolume()
-                                       ->GetMaterial()
-                                       ->GetName();
+                                      ->GetMaterial()
+                                      ->GetName();
 
-                file << pos.x() << ","
-                     << pos.y() << ","
-                     << pos.z() << ","
-                     << material << "\n";
+                voxel_materials.push_back(material);
             }
         }
     }
+    auto dicomSvc = Service<DicomSvc>();
+    dicomSvc->ExportPatientToCT(cfg, voxel_materials, path_to_output_dir);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
