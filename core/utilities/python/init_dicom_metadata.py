@@ -2,6 +2,23 @@ import json
 import datetime
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import generate_uid
+from pydicom.datadict import keyword_dict, dictionary_VR
+
+MAX_VR_LEN = {
+    "SH": 16,    # Short String
+    "LO": 64,    # Long String
+    "ST": 1024,  # Short Text
+    "LT": 10240, # Long Text
+    "PN": 64,    # Person Name
+    "UI": 64,    # Unique Identifier
+    "CS": 16,    # Code String
+    "AE": 16,    # Application Entity
+    "DS": 16,    # Decimal String
+    "IS": 12,    # Integer String
+    "DA": 8,     # Date
+    "TM": 16,    # Time
+    "DT": 26     # Date Time
+}
 
 def generate_base_metadata(patient_metadata_path: str, 
                            patient_name: str,
@@ -46,7 +63,14 @@ def generate_base_metadata(patient_metadata_path: str,
                         prefix = final_val.replace(uid_suffix, "")
                         final_val = generate_uid(prefix=prefix)
                         break
-            
+            # lenght validation
+            tag_hex = keyword_dict.get(key)
+            if tag_hex is not None:
+                vr = dictionary_VR(tag_hex)
+                if vr in MAX_VR_LEN:
+                    max_len = MAX_VR_LEN[vr]
+                    if len(final_val) > max_len:
+                        raise ValueError(f"Error: You inserted a string that is too long into {key} (type {vr}). ")
             if block_name == "FileMetaInformation":
                 setattr(ds.file_meta, key, final_val)
             else:
