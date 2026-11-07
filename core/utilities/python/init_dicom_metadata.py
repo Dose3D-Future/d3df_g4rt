@@ -5,7 +5,7 @@ from pydicom.uid import generate_uid
 
 def generate_base_metadata(patient_metadata_path: str, 
                            patient_name: str,
-                           patient_id: str,
+                           patient_id_hash: str,
                            app_version: str,
                            job_name_hash: str,
                            patient_description: str = ""
@@ -23,7 +23,7 @@ def generate_base_metadata(patient_metadata_path: str,
     replacements = {
         "_PATIENT_GEOMETRY_TYPE_": patient_name,
         "_STUDY_DESCRIPTION_": patient_description,
-        "_PATIENT_ID_HASH_": patient_id,
+        "_PATIENT_ID_HASH_": patient_id_hash,
         "_STUDY_DATE_": now.strftime("%Y%m%d"),
         "_STUDY_TIME_": now.strftime("%H%M%S"),
         "_G4RT_VERSION_": app_version,

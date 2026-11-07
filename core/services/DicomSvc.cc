@@ -2,13 +2,15 @@
 #include "ConfigSvc.hh"
 #include "Services.hh"
 #include "Configurable.hh"
+#include "PatientGeometry.hh"
 
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 
 #include <string>
-#include <functional>
+#include <sstream>
+#include <iomanip>
 #include <fmt/format.h>
 
 namespace py = pybind11;
@@ -16,8 +18,18 @@ using namespace py::literals;
 
 
 namespace {
-    std::string hash16char(const std::string& input) {
-        return fmt::format("{:016x}", std::hash<std::string>{}(input));
+    constexpr uint64_t reproducible_hash(const std::string& text) {
+        uint64_t hash = 0xcbf29ce484222325ULL;
+        for (char c : text) {
+            hash ^= static_cast<uint8_t>(c);
+            hash *= 0x100000001b3ULL;
+        }
+        return hash;
+    }
+
+    template <std::size_t Size = 16>
+    std::string hash_char(const std::string& input) {
+        return fmt::format("{:0{}x}", reproducible_hash(input), Size);
     }
 }
 class ICtSvc::Impl {
@@ -95,11 +107,20 @@ void DicomSvc::InitDicomMetadata(){
     std::string app_version = std::string(G4RT_VERSION);
     std::string patient_name = Service<ConfigSvc>()->GetValue<std::string>("PatientGeometry", "Type");
     std::string job_name = RunSvc::GetJobNameLabel();
-    std::string job_name_hash = hash16char(job_name);
+    std::string job_name_hash = hash_char<16>(job_name);
+
     std::string patient_description = "";
     
-    // TODO: Hash for patient id
-    std::string patient_id = "HASH_12345";
+    std::ostringstream oss;
+    CtTubeConfig geometry_config = Service<PatientGeometry>()->GetCtConfig();
+    oss << std::setprecision(10) 
+            << geometry_config.name << "|"
+            << geometry_config.sizeX << "|" << geometry_config.sizeY << "|" << geometry_config.sizeZ << "|"
+            << geometry_config.envX << "|"  << geometry_config.envY << "|"  << geometry_config.envZ << "|"
+            << geometry_config.initX << "|" << geometry_config.initY << "|" << geometry_config.initZ << "|"
+            << geometry_config.xRes << "|"  << geometry_config.yRes << "|"  << geometry_config.zRes;
+
+    std::string patient_id_hash = hash_char<16>(oss.str());
 
     try {
         py::module_ dicom_mod = py::module_::import("init_dicom_metadata");
@@ -108,7 +129,7 @@ void DicomSvc::InitDicomMetadata(){
         m_dicom_metadata = dicom_mod.attr("generate_base_metadata")(
             patient_metadata_json_path, 
             patient_name, 
-            patient_id, 
+            patient_id_hash, 
             app_version,
             job_name_hash,
             patient_description
