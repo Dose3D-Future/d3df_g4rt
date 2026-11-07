@@ -1,14 +1,25 @@
 #include "DicomSvc.hh"
 #include "ConfigSvc.hh"
 #include "Services.hh"
+#include "Configurable.hh"
+
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
-#include "Configurable.hh"
+
+#include <string>
+#include <functional>
+#include <fmt/format.h>
 
 namespace py = pybind11;
 using namespace py::literals;
 
+
+namespace {
+    std::string hash16char(const std::string& input) {
+        return fmt::format("{:016x}", std::hash<std::string>{}(input));
+    }
+}
 class ICtSvc::Impl {
   public:
       Impl()
@@ -84,6 +95,7 @@ void DicomSvc::InitDicomMetadata(){
     std::string app_version = std::string(G4RT_VERSION);
     std::string patient_name = Service<ConfigSvc>()->GetValue<std::string>("PatientGeometry", "Type");
     std::string job_name = RunSvc::GetJobNameLabel();
+    std::string job_name_hash = hash16char(job_name);
     std::string patient_description = "";
     
     // TODO: Hash for patient id
@@ -92,12 +104,13 @@ void DicomSvc::InitDicomMetadata(){
     try {
         py::module_ dicom_mod = py::module_::import("init_dicom_metadata");
         
+
         m_dicom_metadata = dicom_mod.attr("generate_base_metadata")(
             patient_metadata_json_path, 
             patient_name, 
             patient_id, 
             app_version,
-            job_name,
+            job_name_hash,
             patient_description
         );
 

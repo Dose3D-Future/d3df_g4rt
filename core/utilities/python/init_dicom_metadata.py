@@ -7,7 +7,7 @@ def generate_base_metadata(patient_metadata_path: str,
                            patient_name: str,
                            patient_id: str,
                            app_version: str,
-                           job_name: str,
+                           job_name_hash: str,
                            patient_description: str = ""
                            ) -> Dataset:
     ds = Dataset()
@@ -27,7 +27,7 @@ def generate_base_metadata(patient_metadata_path: str,
         "_STUDY_DATE_": now.strftime("%Y%m%d"),
         "_STUDY_TIME_": now.strftime("%H%M%S"),
         "_G4RT_VERSION_": app_version,
-        "_JOB_NAME_": job_name,
+        "_JOB_NAME_HASH_": job_name_hash,
         "_DICOM_UID_ROOT_": dicom_uid_root,
         "_ORGANIZATION_UID_": org_uid_root
     }
