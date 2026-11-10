@@ -2,7 +2,7 @@
 # Setup the project
 cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
 project(G4rt
-    VERSION 1.0.0 # TODO verify
+    VERSION 0.9.0
 )
 
 
