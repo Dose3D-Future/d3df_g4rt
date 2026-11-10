@@ -663,6 +663,13 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
     RUNSVC_INFO("VoxelLookupMap size = {}", voxelLookupMap.size());
     RUNSVC_INFO("CellHits vector size = {}", cellHits.size());
 
+    // OUTPUT FILES
+    std::string doseFileAbsPath = outDir + "/" + planName + "_ct_dose.csv";
+    std::ofstream doseFile(doseFileAbsPath);
+
+    std::string header =
+        "X [mm],Y [mm],Z [mm],IdX,IdY,IdZ,Material [HU],Dose Cell [Gy],Dose Voxel [Gy],FSF,ASF";
+    doseFile << header << "\n";
 
     // =====================================================
     std::vector<double> rtdose_data(cfg.zRes * cfg.yRes * cfg.xRes, 0.0);
@@ -712,6 +719,18 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
                 }
             }
         }
+
+        doseFile << pos.x() << "," << pos.y() << "," << pos.z()
+                 << "," << idX
+                 << "," << idY
+                 << "," << idZ
+                 << "," << materialHU
+                 << "," << doseCell
+                 << "," << doseVoxel
+                 << "," << fsf
+                 << "," << asf
+                 << "\n";
+
         size_t flat_index = z * (cfg.yRes * cfg.xRes) + y * cfg.xRes + x;
         rtdose_data[flat_index] = doseVoxel;
       });
