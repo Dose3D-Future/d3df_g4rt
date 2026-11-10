@@ -8,6 +8,7 @@
 #ifndef Dose3D_DicomSvcSVC_H
 #define Dose3D_DicomSvcSVC_H
 
+#include "PatientGeometry.hh"
 #include "Types.hh"
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
@@ -26,7 +27,7 @@ class ICtSvc {
       ~ICtSvc();
   
       void set_paths(const std::string& output_path) const;
-      void create_ct_series(const std::string& series_csv_path) const;
+      void create_ct_series(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const;
   
   private:
       class Impl;
@@ -139,7 +140,7 @@ class DicomSvc {
     unsigned GetTotalNumberOfControlPoints() const;
 
     ///
-    void ExportPatientToCT(const std::string& series_csv_path, const std::string& output_path) const;
+    void ExportPatientToCT(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials,const std::string& output_path) const;
 
     ///
     static ControlPointConfig GetControlPointConfig(int id, const std::string& planFile);

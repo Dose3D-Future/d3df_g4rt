@@ -66,6 +66,7 @@ class CtSvc():
             pass
         print(f"Output was set to: {output_path}")
 
+    @classmethod
     def set_project_path(cls, project_path):
         # Not as set_hounsfield_dictiobnary cause also it sett path to template CT.dcm
         cls.__project_path = project_path
@@ -85,29 +86,20 @@ class CtSvc():
 # ------------------------------- Priv Class Methods ----------------------------
 
 
-    def __get_metadata_from_file(self):
-        data = pd.read_csv(f'{self.__data_path}/ct_series_metadata.csv',header=None,index_col=0)
-        data_dict = data.to_dict(orient='dict')[1]
-        self.__x_min = round(float(data_dict["x_min"]),4)
-        self.__x_max = round(float(data_dict["x_max"]),4)
-        self.__y_min = round(float(data_dict["y_min"]),4)
-        self.__y_max = round(float(data_dict["y_max"]),4)
-        self.__z_min = round(float(data_dict["z_min"]),4)
-        self.__z_max = round(float(data_dict["z_max"]),4)
-        self.__pixel_in_x = round(float(data_dict["x_resolution"]),4)
-        self.__pixel_in_y = round(float(data_dict["y_resolution"]),4)
-        self.__pixel_in_z = round(float(data_dict["z_resolution"]),4)
-        self.__step_x = round(float(data_dict["x_step"]),4)
-        self.__step_y = round(float(data_dict["y_step"]),4)
-        self.__step_z = round(float(data_dict["z_step"]),4)
-        self.__SSD = round(float(data_dict["SSD"]),4)
-
-    def __set_image_properties(self, data_path):
-        self.__data_path = data_path
-        self.__get_metadata_from_file()
-        self.__start_Dicom_series()
-
-
+    def __set_metadata_from_dict(self, cfg):
+        self.__x_min = round(float(cfg["initX"]), 4)
+        self.__y_min = round(float(cfg["initY"]), 4)
+        self.__z_min = round(float(cfg["initZ"]), 4)
+        self.__pixel_in_x = round(float(cfg["xRes"]), 4)
+        self.__pixel_in_y = round(float(cfg["yRes"]), 4)
+        self.__pixel_in_z = round(float(cfg["zRes"]), 4)
+        self.__step_x = round(float(cfg["sizeX"]), 4)
+        self.__step_y = round(float(cfg["sizeY"]), 4)
+        self.__step_z = round(float(cfg["sizeZ"]), 4)
+        self.__x_max = round(self.__x_min + self.__step_x * self.__pixel_in_x, 4)
+        self.__y_max = round(self.__y_min + self.__step_y * self.__pixel_in_y, 4)
+        self.__z_max = round(self.__z_min + self.__step_z * self.__pixel_in_z, 4)
+        self.__SSD = round(float(cfg.get("SSD", 1000.0)), 4)
 
     def __start_Dicom_series(self):
         self.__set_hounsfield_dictiobnary()
@@ -165,8 +157,6 @@ class CtSvc():
         ds.RescaleIntercept = r"0.0"
         return ds
 
-
-
     def __write_Dicom_ct_slice(self, rawdata, sliceNumber):
         image2d = rawdata.astype(np.uint16)
         ds = self.series
@@ -193,44 +183,38 @@ class CtSvc():
         ds.save_as(self.__output_path+self.__label+f"{sliceNumber}"+r".dcm")
         print(f"I just saved {self.__label}{sliceNumber}.dcm")
 
-    def __write_whole_Dicom_ct_from_csv(self):
-        # logger.debug("Writing the whole DICOM CT")
+    def __write_whole_Dicom_ct(self, voxel_materials):
         self.series = self.__start_Dicom_series()
         self.instance_UID = self.series.SOPInstanceUID
-        images_path = Path(self.__data_path)
-        print("Start iteration over images")
-        # Collect only CT slice files, excluding metadata and other CSV files
-        images = sorted([
-            path
-            for path in images_path.glob("img*.csv")
-        ])
-        print(f"Found {len(images)} CT slices")
-        for iterator, image_path in enumerate(images, start=1):
+        
+        print("Start iteration over images in memory")
+        
+        y_res = int(self.__pixel_in_y)
+        x_res = int(self.__pixel_in_x)
+        z_res = int(self.__pixel_in_z)
+        slice_size = x_res * z_res
+        
+        print(f"Generating {y_res} CT slices...")
+        
+        for y in range(y_res):
+            start_idx = y * slice_size
+            end_idx = start_idx + slice_size
+            slice_materials = voxel_materials[start_idx:end_idx]
+            
             image_data = (
-                pd.read_csv(image_path)["Material"]
+                pd.Series(slice_materials)
                 .map(self.__hounsfield_units_dictionary)
                 .values
                 .reshape(
-                    int(self.__pixel_in_z),
-                    int(self.__pixel_in_x),
+                    z_res,
+                    x_res,
                     order="F"
                 )
             )
+            
+            iterator = y + 1
             self.__write_Dicom_ct_slice(image_data, iterator)
-
 # -------------------------------- Public Methods --------------------------------
-
-    def create_ct_series(self,directory_path):
-        # print("Heloł")
-        # print(directory_path)
-        # directory_path = "test"
-        self.__set_image_properties(directory_path)
-        self.__write_whole_Dicom_ct_from_csv()
-
-
-# if __name__=="__main__":
-    # scannerCT = CtScanSvc(label="CT_")
-    # scannerCT.set_output_path("/mnt/c/Users/Jakub/Desktop/CT_Base/FinalOutput")
-    # start_time = time.time()
-    # scannerCT.create_ct_series("/home/g4rt/workDir/develop/g4rt/output/ct_creator/geo/DikomlikeData")
-    # print("--- %s seconds ---" % (time.time() - start_time))
+    def create_ct_series(self, cfg, voxel_materials):
+        self.__set_metadata_from_dict(cfg)
+        self.__write_whole_Dicom_ct(voxel_materials)

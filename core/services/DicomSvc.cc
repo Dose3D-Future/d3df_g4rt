@@ -23,9 +23,20 @@ class ICtSvc::Impl {
           m_py_dicom_ct.attr("set_project_path")(PROJECT_DATA_PATH);
       }
   
-      void create_ct_series(const std::string& series_csv_path) const {
-          m_py_dicom_ct.attr("create_ct_series")(series_csv_path);
-      }
+      void create_ct_series(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const {
+              py::dict py_cfg;
+              py_cfg["name"]  = cfg.name;
+              py_cfg["xRes"]  = cfg.xRes;
+              py_cfg["yRes"]  = cfg.yRes;
+              py_cfg["zRes"]  = cfg.zRes;
+              py_cfg["initX"] = cfg.initX;
+              py_cfg["initY"] = cfg.initY;
+              py_cfg["initZ"] = cfg.initZ;
+              py_cfg["sizeX"] = cfg.sizeX;
+              py_cfg["sizeY"] = cfg.sizeY;
+              py_cfg["sizeZ"] = cfg.sizeZ;
+              m_py_dicom_ct.attr("create_ct_series")(py_cfg, voxel_materials);
+          }
   
   private:
       py::object m_py_dicom_ct;
@@ -42,8 +53,8 @@ void ICtSvc::set_paths(const std::string& output_path) const {
     m_impl->set_paths(output_path);
 }
 
-void ICtSvc::create_ct_series(const std::string& series_csv_path) const {
-    m_impl->create_ct_series(series_csv_path);
+void ICtSvc::create_ct_series(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const {
+    m_impl->create_ct_series(cfg, voxel_materials);
 }
 
 
@@ -352,12 +363,10 @@ unsigned DicomSvc::GetRTPlanNumberOfControlPoints(const std::string& planFile,un
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-void DicomSvc::ExportPatientToCT(const std::string& series_csv_path, const std::string& output_path) const {
-
-    // PyGILState_Release(gstate);
+void DicomSvc::ExportPatientToCT(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials, const std::string& output_path) const {
     m_ct_svc.set_paths(output_path);
-    m_ct_svc.create_ct_series(series_csv_path);
-  }
+    m_ct_svc.create_ct_series(cfg, voxel_materials);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
