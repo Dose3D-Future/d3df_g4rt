@@ -1,12 +1,38 @@
 #include "DicomSvc.hh"
+#include "ConfigSvc.hh"
+#include "RunSvc.hh"
 #include "Services.hh"
+#include "Configurable.hh"
+#include "PatientGeometry.hh"
+
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
 
+#include <string>
+#include <sstream>
+#include <iomanip>
+#include <fmt/format.h>
+
 namespace py = pybind11;
 using namespace py::literals;
 
+
+namespace {
+    constexpr uint64_t reproducible_hash(const std::string& text) {
+        uint64_t hash = 0xcbf29ce484222325ULL;
+        for (char c : text) {
+            hash ^= static_cast<uint8_t>(c);
+            hash *= 0x100000001b3ULL;
+        }
+        return hash;
+    }
+
+    template <std::size_t Size = 16>
+    std::string hash_char(const std::string& input) {
+        return fmt::format("{:0{}x}", reproducible_hash(input), Size);
+    }
+}
 class ICtSvc::Impl {
   public:
       Impl()
@@ -62,6 +88,7 @@ void DicomSvc::Initialize(const std::string& planFileType){
     G4Exception("DicomSvc", "Initialize", FatalErrorInArgument, msg);
   }
 
+  InitDicomMetadata();
   // TODO refacto the following as the context specific code...
   //
   // auto rtplanMlcReader = py::module::import("dicom_rtplan_mlc");
@@ -75,6 +102,51 @@ void DicomSvc::Initialize(const std::string& planFileType){
   //              LOGSVC_INFO("DcmSvc","Found #{} control poinst for {} beam",nCP,i);
   // }
 }
+void DicomSvc::InitDicomMetadata(){
+    std::string patient_metadata_json_path =  Service<ConfigSvc>()->GetValue<std::string>("RunSvc", "PatientMetadataFile");
+    if (!svc::checkIfFileExist(patient_metadata_json_path)) {
+        FATAL_GEO("PatientMetadataFile file not exist at {}", patient_metadata_json_path);
+        exit(1);
+    }
+    
+    std::string app_version = std::string(G4RT_VERSION);
+    std::string patient_name = Service<ConfigSvc>()->GetValue<std::string>("PatientGeometry", "Type");
+    std::string job_name = RunSvc::GetJobNameLabel();
+    std::string job_name_hash = hash_char<16>(job_name);
+
+    std::string patient_description = Service<ConfigSvc>()->GetValue<std::string>("RunSvc", "StudyDescription");
+    if (patient_description.empty())
+      patient_description = "";
+
+    std::ostringstream oss;
+    CtTubeConfig geometry_config = Service<PatientGeometry>()->GetCtConfig();
+    oss << std::setprecision(10) 
+            << geometry_config.name << "|"
+            << geometry_config.sizeX << "|" << geometry_config.sizeY << "|" << geometry_config.sizeZ << "|"
+            << geometry_config.envX << "|"  << geometry_config.envY << "|"  << geometry_config.envZ << "|"
+            << geometry_config.initX << "|" << geometry_config.initY << "|" << geometry_config.initZ << "|"
+            << geometry_config.xRes << "|"  << geometry_config.yRes << "|"  << geometry_config.zRes;
+
+    std::string patient_id_hash = hash_char<16>(oss.str());
+
+    try {
+        py::module_ dicom_mod = py::module_::import("init_dicom_metadata");
+        
+
+        m_dicom_metadata = dicom_mod.attr("generate_base_metadata")(
+            patient_metadata_json_path, 
+            patient_name, 
+            patient_id_hash, 
+            app_version,
+            job_name_hash,
+            patient_description
+        );
+
+    } catch (const py::error_already_set& e) {
+        throw std::runtime_error(std::string("Unable to initialize Patient Metadata: ") + e.what());
+    }
+}
+
 
 void DicomSvc::SetPlanFile(const std::string& plan_file){
   m_rtplan_file = plan_file;
