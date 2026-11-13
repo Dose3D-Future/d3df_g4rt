@@ -50,7 +50,7 @@ def generate_base_metadata(patient_metadata_path: str,
     }
 
     for block_name, block_data in template.items():
-        if block_name in ["DicomUIDRoot", "OrganizationUID"]:
+        if block_name in ["Dicom_UID_Root", "Organization_UID"]:
             continue
 
         for key, val in block_data.items():
