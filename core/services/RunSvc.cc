@@ -138,7 +138,7 @@ void RunSvc::DefaultConfig(const std::string& unit) {
   if (unit.compare("JobName") == 0) thisConfig()->SetTValue<std::string>(unit, std::string("ExampleJobName"));
 
   // default StudyDescription name
-  if (unit.compare("StudyDescription") == 0) thisConfig()->SetTValue<std::string>(unit, std::string("Happy Simulation"));
+  if (unit.compare("StudyDescription") == 0) thisConfig()->SetTValue<std::string>(unit, std::string(""));
 
   // default number of primary events
   if (unit.compare("NumberOfEvents") == 0) thisConfig()->SetTValue<int>(unit, int(1000));

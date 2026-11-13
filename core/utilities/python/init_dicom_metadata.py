@@ -34,8 +34,8 @@ def generate_base_metadata(patient_metadata_path: str,
         template = json.load(f)
         
     now = datetime.datetime.now()
-    dicom_uid_root = template.get("DicomUIDRoot", "1.2.840.10008")
-    org_uid_root = template.get("OrganizationUID", "")
+    dicom_uid_root = template.get("Dicom_UID_Root", "1.2.840.10008")
+    org_uid_root = template.get("Organization_UID", "")
 
     replacements = {
         "_PATIENT_GEOMETRY_TYPE_": patient_name,
