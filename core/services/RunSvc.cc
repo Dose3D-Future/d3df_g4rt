@@ -111,6 +111,7 @@ void RunSvc::Configure() {
 
   // DICOM OUTPUT MANAGEMENT
   DefineUnit<bool>("GenerateCT");
+  DefineUnit<bool>("GenerateRTStruct");
 
   DefineUnit<std::string>("OutputDir");
 
@@ -218,6 +219,7 @@ void RunSvc::DefaultConfig(const std::string& unit) {
   if (unit.compare("WriteFieldMaskToCsv") == 0) thisConfig()->SetTValue<bool>(unit, false);
 
   if (unit.compare("GenerateCT") == 0) thisConfig()->SetTValue<bool>(unit, false);
+  if (unit.compare("GenerateRTStruct") == 0) thisConfig()->SetTValue<bool>(unit, false);
 
   if (unit.compare("OutputDir") == 0) thisConfig()->SetTValue<std::string>(unit, std::string());
 }
@@ -602,6 +604,9 @@ void RunSvc::WriteGeometryData() const {
   if(thisConfig()->GetValue<bool>("GenerateCT")){
     geoSvc->WritePatientToCsvCT();
     geoSvc->WritePatientToDicomCT();
+  }
+  if(thisConfig()->GetValue<bool>("GenerateRTStruct")){
+    geoSvc->WritePatientToRTStruct();
   }
 }
 
