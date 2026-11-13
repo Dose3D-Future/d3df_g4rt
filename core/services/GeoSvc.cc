@@ -529,7 +529,7 @@ void GeoSvc::WritePatientToDicomCT(){
   //       hence the GeoSvc::WritePatientToCsvCT has to be called!
   auto output_dir = GetOutputDir()+"/dicom/ct_csv";
   auto dicomSvc = Service<DicomSvc>();
-  auto dciom_dir = GetOutputDir()+"/dicom/ct_dcm";
+  auto dciom_dir = GetDicomCtOutputDir();
   dicomSvc->ExportPatientToCT(output_dir,dciom_dir);
   IO::DeleteDirectory(output_dir); // TODO: It will be not necessery once dcm export will be independent from csv generation.
 }
@@ -551,6 +551,13 @@ std::string GeoSvc::GetOutputDir() {
   IO::CreateDirIfNotExits(dir);
   return dir;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+///
+std::string GeoSvc::GetDicomCtOutputDir() const {
+    return GetOutputDir() + "/dicom/ct_dcm";
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ///
 void GeoSvc::WritePatientToRTStruct() {
@@ -569,7 +576,7 @@ void GeoSvc::WritePatientToRTStruct() {
     }
     INFO_GEO("Collected {} cells. Passing directly to DicomSvc...", cells.size());
 
-    auto ct_dir = GetOutputDir() + "/dicom/ct_dcm";
+    auto ct_dir = GetDicomCtOutputDir();
     auto rtstruct_dir = GetOutputDir() + "/dicom/rtstruct";
 
     auto dicomSvc = Service<DicomSvc>();

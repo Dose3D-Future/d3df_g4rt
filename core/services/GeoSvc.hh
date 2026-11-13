@@ -66,6 +66,9 @@ class GeoSvc : public TomlConfigurable{
   ///
   void ExportToGateGenericRepeater() const;
 
+  ///
+  std::string GetDicomCtOutputDir() const;
+
   public:
   ///\brief Static method to get instance of this singleton object.
   static GeoSvc *GetInstance();
