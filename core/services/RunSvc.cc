@@ -61,6 +61,7 @@ void RunSvc::Configure() {
   RUNSVC_INFO("Service default configuration ");
   DefineUnit<std::string>("JobName");
   DefineUnit<std::string>("StudyDescription");
+  DefineUnit<std::string>("PatientMetadataFile");
 
   // MULTI RUN
   DefineUnit<std::string>("SimConfigFile");
@@ -139,6 +140,9 @@ void RunSvc::DefaultConfig(const std::string& unit) {
 
   // default StudyDescription name
   if (unit.compare("StudyDescription") == 0) thisConfig()->SetTValue<std::string>(unit, std::string(""));
+
+  // default StudyDescription name
+  if (unit.compare("PatientMetadataFile") == 0) thisConfig()->SetTValue<std::string>(unit, std::string(PROJECT_LOCATION_PATH) + "/submodules/d3df-patients/patient/dicom/generic_patient.json");
 
   // default number of primary events
   if (unit.compare("NumberOfEvents") == 0) thisConfig()->SetTValue<int>(unit, int(1000));

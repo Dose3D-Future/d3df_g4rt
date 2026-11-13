@@ -1,5 +1,6 @@
 #include "DicomSvc.hh"
 #include "ConfigSvc.hh"
+#include "RunSvc.hh"
 #include "Services.hh"
 #include "Configurable.hh"
 #include "PatientGeometry.hh"
@@ -102,7 +103,11 @@ void DicomSvc::Initialize(const std::string& planFileType){
   // }
 }
 void DicomSvc::InitDicomMetadata(){
-    std::string patient_metadata_json_path = std::string(PROJECT_LOCATION_PATH) + "/submodules/d3df-patients/patient/dicom/generic_patient.json";
+    std::string patient_metadata_json_path =  Service<ConfigSvc>()->GetValue<std::string>("RunSvc", "PatientMetadataFile");
+    if (!svc::checkIfFileExist(patient_metadata_json_path)) {
+        FATAL_GEO("PatientMetadataFile file not exist at {}", patient_metadata_json_path);
+        exit(1);
+    }
     
     std::string app_version = std::string(G4RT_VERSION);
     std::string patient_name = Service<ConfigSvc>()->GetValue<std::string>("PatientGeometry", "Type");
