@@ -34,7 +34,7 @@ def generate_base_metadata(patient_metadata_path: str,
         template = json.load(f)
         
     now = datetime.datetime.now()
-    dicom_uid_root = template.get("Dicom_UID_Root", "1.2.840.10008")
+    dicom_uid_root = template.get("Dicom_UID_Root")
     org_uid_root = template.get("Organization_UID", "")
 
     replacements = {
@@ -45,7 +45,6 @@ def generate_base_metadata(patient_metadata_path: str,
         "_STUDY_TIME_": now.strftime("%H%M%S"),
         "_G4RT_VERSION_": app_version,
         "_JOB_NAME_HASH_": job_name_hash,
-        "_DICOM_UID_ROOT_": dicom_uid_root,
         "_ORGANIZATION_UID_": org_uid_root
     }
 
@@ -69,11 +68,12 @@ def generate_base_metadata(patient_metadata_path: str,
                 vr = dictionary_VR(tag_hex)
                 if vr in MAX_VR_LEN:
                     max_len = MAX_VR_LEN[vr]
-                    if len(final_val) > max_len:
+                    if len(str(final_val)) > max_len:
                         raise ValueError(f"Error: You inserted a string that is too long into {key} (type {vr}). ")
             if block_name == "FileMetaInformation":
                 setattr(ds.file_meta, key, final_val)
             else:
                 setattr(ds, key, final_val)
-            
+
+    ds._dicom_uid_root = dicom_uid_root
     return ds

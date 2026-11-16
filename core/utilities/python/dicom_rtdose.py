@@ -20,7 +20,7 @@ def write_rtdose(dicom_metadata: Dataset, grid_meta: dict, dose_grid, output_fil
 
     # --- File Meta Information ---
     file_meta = FileMetaDataset()
-    file_meta.MediaStorageSOPClassUID = UID("1.2.840.10008.5.1.4.1.1.481.2")  # RT Dose Storage
+    file_meta.MediaStorageSOPClassUID = UID(dicom_metadata._dicom_uid_root + ".5.1.4.1.1.481.2")  # RT Dose Storage
     file_meta.MediaStorageSOPInstanceUID = generate_uid()
     file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
@@ -74,7 +74,7 @@ def write_rtdose(dicom_metadata: Dataset, grid_meta: dict, dose_grid, output_fil
 
     # Reference to RT_Plan (TODO: connect to correct one)
     referenced_rt_plan = Dataset()
-    referenced_rt_plan.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.481.5"
+    referenced_rt_plan.ReferencedSOPClassUID = dicom_metadata._dicom_uid_root + ".5.1.4.1.1.481.5"
     referenced_rt_plan.ReferencedSOPInstanceUID = "1.2.3.4.5.6.7.8.9.0"
     ds.ReferencedRTPlanSequence = Sequence([referenced_rt_plan])
 
