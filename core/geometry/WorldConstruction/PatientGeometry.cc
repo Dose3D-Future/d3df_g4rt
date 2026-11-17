@@ -1,6 +1,7 @@
 #include "PatientGeometry.hh"
 #include "Types.hh"
 #include "VoxelHit.hh"
+#include "VPatientSD.hh"
 #include "WaterPhantom.hh"
 #include "SciSlicePhantom.hh"
 #include "DishCubePhantom.hh"
@@ -17,6 +18,10 @@
 #include "GeometryBuilder.hh"
 #include "GeometryDBReader.hh"
 #include "ModularWaterPhantom.hh"
+
+#include <algorithm>
+#include <cmath>
+#include <stdexcept>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -576,7 +581,7 @@ void PatientGeometry::ExportToCsvCT(const std::string& path_to_output_dir) const
 /// IMPORTANT:
 /// - Both Voxel and Cell scoring data are resampled onto this grid
 /// - This guarantees strict spatial alignment between datasets
-/// - Nearest neighbour sampling is performed based on grid spatial alignment
+/// - Each CT centre samples the source scoring volume containing that point
 ///
 /// ======= Lookup & Mapping strategy =======
 /// To prevent massive performance bottlenecks during grid iteration, scoring
@@ -584,14 +589,14 @@ void PatientGeometry::ExportToCsvCT(const std::string& path_to_output_dir) const
 ///
 /// - Voxel Lookup (Dense, High-Resolution):
 ///   Mapped into a `std::unordered_map` using a discrete 3D `SpatialKey` (i, j, k)
-///   computed relative to the grid origin.
+///   for every CT centre contained in the source voxel.
 ///     - Complexity: O(1) average lookup per CT voxel.
 ///     - Yields precise, local mapping alongside structural IDs (IdX, IdY, IdZ)
 ///       and scaling factors (FSF, ASF).
 /// - Cell Lookup (Sparse, Coarse Resolution):
 ///   Stored in a flat linear vector (`cellHits`).
 ///   For each CT voxel, candidates are filtered using an axis-aligned boundary
-///   tolerance window (half the CT voxel size: +-sizeX/2). The closest match
+///   window given by the actual cell half sizes. The closest match
 ///   by Euclidean distance is selected.
 ///
 /// ======= Coordinate system =======
@@ -620,15 +625,19 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
     auto metaDataFile = outDir + "/" + planName + "_ct_series_metadata.csv";
     WriteCtMetadata(metaDataFile, cfg);
 
-    const double doseVoxelSizeX = cfg.sizeX;
-    const double doseVoxelSizeY = cfg.sizeY;
-    const double doseVoxelSizeZ = cfg.sizeZ;
+    const auto* detector = dynamic_cast<const D3DDetector*>(m_patient);
+    const auto* patientBox = detector ? nullptr : dynamic_cast<const G4Box*>(
+        m_patient->GetPhysicalVolume()->GetLogicalVolume()->GetSolid());
+    const G4ThreeVector cellHalfSize = detector ? D3DCell::SIZE / 2.0 :
+        patientBox ? G4ThreeVector(patientBox->GetXHalfLength(),
+                                  patientBox->GetYHalfLength(),
+                                  patientBox->GetZHalfLength()) : G4ThreeVector();
 
-    G4ThreeVector doseGridOrigin(
-        cfg.initX - (doseVoxelSizeX / 2.0),
-        cfg.initY - (doseVoxelSizeY / 2.0),
-        cfg.initZ - (doseVoxelSizeZ / 2.0)
-    );
+    // CT centres in [lower, upper); shared source boundaries belong to one voxel.
+    auto ctIndexAtBoundary = [](double boundary, double init, double step, int count) {
+        return std::clamp(static_cast<int>(std::ceil((boundary - init) / step - 1e-7)),
+                          0, count);
+    };
 
     // =====================================================
     // HASHING
@@ -660,12 +669,39 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
                 auto& hit_data = entry.second;
 
                 if (scoring.first == Scoring::Type::Voxel) {
-                    int i = static_cast<int>(std::floor((hit_data.GetCentre().x() - doseGridOrigin.x()) / doseVoxelSizeX));
-                    int j = static_cast<int>(std::floor((hit_data.GetCentre().y() - doseGridOrigin.y()) / doseVoxelSizeY));
-                    int k = static_cast<int>(std::floor((hit_data.GetCentre().z() - doseGridOrigin.z()) / doseVoxelSizeZ));
+                    G4ThreeVector halfSize;
+                    if (detector) {
+                        const auto& sourceCfg = detector->GetConfig();
+                        halfSize = G4ThreeVector(
+                            cellHalfSize.x() / sourceCfg.m_cell_nX_voxels,
+                            cellHalfSize.y() / sourceCfg.m_cell_nY_voxels,
+                            cellHalfSize.z() / sourceCfg.m_cell_nZ_voxels);
+                    } else {
+                        const auto* sd = m_patient->GetSD();
+                        const auto* sv = sd ? sd->GetRunCollectionReferenceScoringVolume(sm.first, true) : nullptr;
+                        if (!sv) {
+                            throw std::runtime_error("Cannot determine source voxel dimensions for CT dose export");
+                        }
+                        halfSize = G4ThreeVector(sv->GetSizeX() / (2.0 * sv->m_nVoxelsX),
+                                                 sv->GetSizeY() / (2.0 * sv->m_nVoxelsY),
+                                                 sv->GetSizeZ() / (2.0 * sv->m_nVoxelsZ));
+                    }
+                    const auto lower = hit_data.GetCentre() - halfSize;
+                    const auto upper = hit_data.GetCentre() + halfSize;
+                    const int xBegin = ctIndexAtBoundary(lower.x(), cfg.initX, cfg.sizeX, cfg.xRes);
+                    const int xEnd = ctIndexAtBoundary(upper.x(), cfg.initX, cfg.sizeX, cfg.xRes);
+                    const int yBegin = ctIndexAtBoundary(lower.y(), cfg.initY, cfg.sizeY, cfg.yRes);
+                    const int yEnd = ctIndexAtBoundary(upper.y(), cfg.initY, cfg.sizeY, cfg.yRes);
+                    const int zBegin = ctIndexAtBoundary(lower.z(), cfg.initZ, cfg.sizeZ, cfg.zRes);
+                    const int zEnd = ctIndexAtBoundary(upper.z(), cfg.initZ, cfg.sizeZ, cfg.zRes);
 
-                    SpatialKey key(i, j, k);
-                    voxelLookupMap[key] = &hit_data;
+                    for (int i = xBegin; i < xEnd; ++i) {
+                        for (int j = yBegin; j < yEnd; ++j) {
+                            for (int k = zBegin; k < zEnd; ++k) {
+                                voxelLookupMap[SpatialKey(i, j, k)] = &hit_data;
+                            }
+                        }
+                    }
                 }
                 else if (scoring.first == Scoring::Type::Cell) {
                     cellHits.push_back(&hit_data);
@@ -699,11 +735,7 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
         double fsf = 0.0;
         double asf = 0.0;
 
-        int target_i = static_cast<int>(std::floor((pos.x() - doseGridOrigin.x()) / doseVoxelSizeX));
-        int target_j = static_cast<int>(std::floor((pos.y() - doseGridOrigin.y()) / doseVoxelSizeY));
-        int target_k = static_cast<int>(std::floor((pos.z() - doseGridOrigin.z()) / doseVoxelSizeZ));
-
-        SpatialKey searchKey(target_i, target_j, target_k);
+        SpatialKey searchKey(x, y, z);
         auto voxelIt = voxelLookupMap.find(searchKey);
 
         if (voxelIt != voxelLookupMap.end()) {
@@ -722,9 +754,9 @@ void PatientGeometry::ExportDoseToCsvCT(const G4Run* runPtr) const {
             double dy = hit->GetCentre().y() - pos.y();
             double dz = hit->GetCentre().z() - pos.z();
 
-            if (std::abs(dx) <= cfg.sizeX/2
-             && std::abs(dy) <= cfg.sizeX/2
-             && std::abs(dz) <= cfg.sizeX/2) {
+            if (dx <= cellHalfSize.x() && dx > -cellHalfSize.x()
+             && dy <= cellHalfSize.y() && dy > -cellHalfSize.y()
+             && dz <= cellHalfSize.z() && dz > -cellHalfSize.z()) {
                 double d2 = dx*dx + dy*dy + dz*dz;
                 if (d2 < bestDist2) {
                     bestDist2 = d2;
