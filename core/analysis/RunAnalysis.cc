@@ -114,7 +114,7 @@ void RunAnalysis::EndOfRun(const G4Run* runPtr){
 
     auto planDatFile = m_current_cp->GetPlanFile();
     auto planName = m_current_cp->GetPlanName();
-    // DataAugmentation(outputDir+"/"+planName+"_ct_dose.csv",planDatFile,outputDir+"/augm");
+    DataAugmentation(outputDir+"/"+planName+"_ct_dose.csv",planDatFile,outputDir+"/augm");
     Mask2Matrix(outputDir+"/augm");
 
 }
