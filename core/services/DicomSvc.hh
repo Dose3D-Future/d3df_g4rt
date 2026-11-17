@@ -73,6 +73,19 @@ class ICustomPlan : public IPlan {
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
+class IRtStructSvc {
+  public:
+    IRtStructSvc();
+    ~IRtStructSvc();
+    void set_paths(const std::string& output_path) const;
+    void create_rtstruct(const std::string& ct_series_path,
+                         const std::vector<CellVoxelDescriptor>& cells) const;
+  private:
+    class Impl;
+    std::unique_ptr<Impl> m_impl;
+};
+////////////////////////////////////////////////////////////////////////////////
+///
 class DicomSvc {
   private:
     /// \brief The full path the RT-Plan file
@@ -100,6 +113,8 @@ class DicomSvc {
     DicomSvc(DicomSvc &&) = delete;
     DicomSvc &operator=(DicomSvc &&) = delete;
 
+    ///
+    IRtStructSvc m_rtstruct_svc;
     ///
     ICtSvc m_ct_svc;
 
@@ -141,6 +156,10 @@ class DicomSvc {
     ///
     void ExportPatientToCT(const std::string& series_csv_path, const std::string& output_path) const;
 
+    ///
+    void ExportCellsToRTStruct(const std::string& ct_series_path, 
+                               const std::vector<CellVoxelDescriptor>& cells,                         
+                               const std::string& output_path) const;
     ///
     static ControlPointConfig GetControlPointConfig(int id, const std::string& planFile);
 

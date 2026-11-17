@@ -2,6 +2,7 @@
 #include "VPatientSD.hh"
 #include "VPatient.hh"
 #include "Services.hh"
+#include <G4ThreeVector.hh>
 #include <string>
 #include "PatientTrackInfo.hh"
 #include "PrimaryParticleInfo.hh"
@@ -390,6 +391,26 @@ G4ThreeVector VPatientSD::ScoringVolume::GetVoxelCentre(int linearizedId) const 
     return m_channelCentrePosition.at(linearizedId);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+///
+std::vector<G4ThreeVector> VPatientSD::ScoringVolume::GetOuterShellVoxelsCenters() const{
+  std::vector<G4ThreeVector> shell_voxels;
+  if (m_nVoxelsX <= 0 || m_nVoxelsY <= 0 || m_nVoxelsZ <= 0)
+    return shell_voxels;
+  shell_voxels.reserve((m_nVoxelsX * m_nVoxelsY * 2) +
+                       (m_nVoxelsX * m_nVoxelsZ * 2) +
+                       (m_nVoxelsY * m_nVoxelsZ * 2));
+                    
+  for(int ix = 0; ix < m_nVoxelsX; ++ix)
+    for(int iy = 0; iy < m_nVoxelsY; ++iy)
+      for(int iz = 0; iz < m_nVoxelsZ; ++iz){
+        if(ix==0 || ix == m_nVoxelsX -1 ||
+           iy==0 || iy == m_nVoxelsY -1 ||
+           iz==0 || iz == m_nVoxelsZ -1)
+          shell_voxels.push_back(GetVoxelCentre(ix, iy, iz));
+    }
+  return shell_voxels;
+}
 ////////////////////////////////////////////////////////////////////////////////
 ///
 G4int VPatientSD::ScoringVolume::GetVoxelID(G4int axisId, const G4ThreeVector& hitPosition)  const {

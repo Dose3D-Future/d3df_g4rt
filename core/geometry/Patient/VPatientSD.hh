@@ -67,6 +67,9 @@ class VPatientSD : public G4VSensitiveDetector{
           G4ThreeVector GetVoxelCentre(int idX, int idY, int idZ) const;
           G4ThreeVector GetVoxelCentre(int linearizedId) const; 
 
+          /// Returns the centers of the voxels forming the outer shell
+          std::vector<G4ThreeVector> GetOuterShellVoxelsCenters() const;
+
           /// Linearized channel (nVoxels) hit collection index (defined for X * Y * Z)
           std::vector<G4int> m_channelHCollectionIndex;
 

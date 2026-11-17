@@ -179,11 +179,11 @@ class CtSvc():
 
         ds.PixelSpacing = f"{self.__step_x}\{self.__step_z}"
 
-
-        ds.ImagePositionPatient = f"{self.__x_min}\{self.__z_min}\{round(self.__y_min+sliceNumber*self.__step_y,4)}"
-
-
-        ds.SliceLocation = f"{round(self.__y_min+sliceNumber*self.__step_y,4)}"
+        start_x = self.__x_min + (self.__step_x / 2.0)
+        start_z = self.__z_min + (self.__step_z / 2.0)
+        current_z = round(self.__y_min + (self.__step_y / 2.0) + (sliceNumber - 1) * self.__step_y, 4)
+        ds.ImagePositionPatient = f"{start_x}\\{start_z}\\{current_z}"
+        ds.SliceLocation = f"{current_z}"
 
         ds.InstanceCreationTime = datetime.datetime.now().strftime("%H%M%S.%f")[:-3]
         ds.ContentTime = datetime.datetime.now().strftime("%H%M%S")

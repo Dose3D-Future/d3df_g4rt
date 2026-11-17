@@ -46,6 +46,13 @@ enum class EMlcModel {
   Simplified
 };
 
+////////////////////////////////////////////////////////////////////////////////
+///
+struct CellVoxelDescriptor {
+    std::string label;
+    std::vector<G4ThreeVector> contourPoints;
+    G4ThreeVector halfLength;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
@@ -68,6 +75,9 @@ class GeoComponet {
     virtual void ExportVoxelPositioningToCsv(const std::string& path_to_output_dir) const {};
     virtual void ExportPositioningToTFile(const std::string& path_to_output_dir) const = 0;
     virtual void ExportToGateCsv(const std::string& path_to_output_dir) const {};
+    virtual std::vector<CellVoxelDescriptor> GetCellsDescriptors() const {
+        return {};
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
