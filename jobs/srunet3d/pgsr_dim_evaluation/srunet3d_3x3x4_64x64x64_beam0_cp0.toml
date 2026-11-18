@@ -1,6 +1,7 @@
 [RunSvc]
 JobName = "srunet3d_3x3x4_64x64x64_beam0"
 BeamType = "IAEA"
+StudyDescription = "Happy Simulation"
 # PhspInputFileName = "/mnt/data/PHSP/TB_20X20_Merged"
 # PhspInputFileName = "/mnt/c/Users/brachwal-agh/Workspace/IAEA/Clinac2300-PhSp-Primo/TNSIM157_3x3s2-f0" # AGH Dell-XPS location
 # PhspInputFileName = "/etude/brachwal/iaea-phsp/TNSIM157_3x3s2-f0" # AGH LHCBD2 location

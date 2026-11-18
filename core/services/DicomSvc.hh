@@ -104,7 +104,13 @@ class DicomSvc {
     ICtSvc m_ct_svc;
 
     ///
+    py::object m_dicom_metadata = py::none();
+
+    ///
     std::unique_ptr<IPlan> m_plan;
+
+    ///
+    void InitDicomMetadata();
 
   public:
     ///\brief Static method to get instance of this singleton object.
@@ -137,6 +143,9 @@ class DicomSvc {
 
     ///
     unsigned GetTotalNumberOfControlPoints() const;
+
+    ///
+    py::object GetMetadata() const { return m_dicom_metadata; }
 
     ///
     void ExportPatientToCT(const std::string& series_csv_path, const std::string& output_path) const;

@@ -91,6 +91,9 @@ class PatientGeometry : public IPhysicalVolume,
   void DefaultConfig(const std::string &unit) override;
 
   ///
+  CtTubeConfig GetCtConfig() {return m_ctConfig;}
+  
+  ///
   VPatient* GetPatient() const { return m_patient; }
 
   ///
@@ -99,6 +102,9 @@ class PatientGeometry : public IPhysicalVolume,
   void ExportToRTDose(const CtTubeConfig& cfg, const std::vector<double>& dose_data, const std::string& output_file) const;
 
   private:
+  ///
+  CtTubeConfig m_ctConfig;
+  
   ///
   PatientGeometry();
 
