@@ -8,6 +8,7 @@
 #include "PrimariesAnalysis.hh"
 #include "StepAnalysis.hh"
 #include "NTupleEventAnalisys.hh"
+#include "EventAction.hh"
 #include "colors.hh"
 #include <map>
 #include <fstream>
@@ -58,6 +59,12 @@ G4Run* RunAction::GenerateRun(){
 void RunAction::BeginOfRunAction(const G4Run* aRun) {
   auto configSvc = Service<ConfigSvc>();
   auto runSvc = Service<RunSvc>();
+
+  if (IsMaster()) {
+    EventAction::ResetProgress(
+        runSvc->CurrentControlPoint()->GetNEvts(),
+        configSvc->GetValue<double>("RunSvc", "PrintProgressFrequency"));
+  }
 
   fAnalysisManager->SetFileName(runSvc->CurrentControlPoint()->GetSimOutputTFileName(true));
   fAnalysisManager->OpenFile();

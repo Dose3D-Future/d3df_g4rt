@@ -265,7 +265,7 @@ void PatientGeometry::Construct(G4VPhysicalVolume *parentPV) {
   // Region for cuts
   auto regVol = new G4Region("phantomEnviromentRegion");
   auto cuts = new G4ProductionCuts;
-  cuts->SetProductionCut(5.0 * mm);
+  cuts->SetProductionCut(0.25 * mm);
   regVol->SetProductionCuts(cuts);
   patientEnvLV->SetRegion(regVol);
   regVol->AddRootLogicalVolume(patientEnvLV);

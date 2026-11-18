@@ -39,7 +39,9 @@ void VoxelHit::Fill(G4Step* aStep) {
     if (edep > 0) {  // don't increase the vector size with zeros
       m_Voxel.m_stepsEdep.emplace_back(edep);
       if (m_Voxel.m_Mass != 0.)
-        m_Voxel.m_Dose = (m_Voxel.m_Edep / m_Voxel.m_Mass) / gray;
+        m_Voxel.m_Dose = m_Voxel.m_StepWiseDose
+                            ? m_Voxel.m_Dose + (edep / m_Voxel.m_Mass) / gray
+                            : (m_Voxel.m_Edep / m_Voxel.m_Mass) / gray;
       else {
         G4cout << "[WARNING]::VoxelHit::GetDose() The voxel mass is not set!" << G4endl;
       }
@@ -69,8 +71,14 @@ void VoxelHit::Update(G4Step* aStep) {
   m_Voxel.m_Edep += edep;
   if (edep > 0) {  // don't increase the vector size with zeros
     m_Voxel.m_stepsEdep.emplace_back(edep);
+    if (m_Voxel.m_StepWiseDose && m_Voxel.m_Volume > 0.) {
+      const auto density = aStep->GetPreStepPoint()->GetMaterial()->GetDensity();
+      m_Voxel.m_Mass = density * m_Voxel.m_Volume;
+    }
     if (m_Voxel.m_Mass != 0.)
-      m_Voxel.m_Dose = (m_Voxel.m_Edep / m_Voxel.m_Mass) / gray;
+      m_Voxel.m_Dose = m_Voxel.m_StepWiseDose
+                          ? m_Voxel.m_Dose + (edep / m_Voxel.m_Mass) / gray
+                          : (m_Voxel.m_Edep / m_Voxel.m_Mass) / gray;
     else {
       G4cout << "[WARNING]::VoxelHit::GetDose() The voxel mass is not set!" << G4endl;
     }

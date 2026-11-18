@@ -1,0 +1,59 @@
+[RunSvc]
+JobName = "parallel world dose example"
+BeamType = "gps"
+GpsMacFileName = "gps/parallel_world_dose.mac"
+PrintProgressFrequency = 1.0
+Physics = "LowE_Penelope"
+NumberOfThreads = 1
+RunAnalysis = true
+NTupleAnalysis = true
+StoreTracks = false
+StorePositions = true
+StoreEnergies = true
+StorePrimaries = false
+StoreRunInfo = false
+MinimalMode = false
+
+[GeoSvc]
+BuildLinac = true
+BuildPatient = true
+MlcModel = "Simplified"
+
+[PatientGeometry]
+Type = "D3DDetector"
+PatientIsocentreX = 0.0
+PatientIsocentreY = 0.0
+PatientIsocentreZ = 0.0
+EnviromentSizeX = 50.0
+EnviromentSizeY = 50.0
+EnviromentSizeZ = 80.0
+EnviromentMedium = "G4_Galactic"
+
+[ParallelWorldDoseScorer]
+Enabled = true
+SizeX = 0.0
+SizeY = 0.0
+SizeZ = 0.0
+CentreX = 0.0
+CentreY = 0.0
+CentreZ = 0.0
+VoxelSizeX = 5.0
+VoxelSizeY = 5.0
+VoxelSizeZ = 5.0
+CollectionName = "ParentWorldDose"
+
+[D3DDetector_Detector]
+TranslationInLocalFrame = [0.0, 0.0, -50.0]
+Voxelization = [3, 2, 5]
+
+[D3DDetector_Cell]
+Medium = "RMPS470"
+Voxelization = [2, 2, 2]
+TracksAnalysis = false
+CellVoxelisedScorer = true
+
+[RunSvc_Plan]
+nControlPoints = 1
+BeamRotation = 0
+nParticles = 100
+PlanInputFile = ["plan/custom/rot00deg_10x10.dat"]

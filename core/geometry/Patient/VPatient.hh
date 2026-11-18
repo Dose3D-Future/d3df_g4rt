@@ -60,6 +60,13 @@ class VPatient : public IPhysicalVolume, public TomlConfigModule{
       return std::map<std::size_t, VoxelHit>();
     }
 
+    /// Whether this component provides the requested scoring collection.
+    /// Unlike checking whether GetScoringHashedMap() is empty, this also
+    /// supports sparse scorers whose run map is intentionally empty at start.
+    virtual bool HasScoring(const G4String& name, Scoring::Type type) const {
+      return !GetScoringHashedMap(name, type).empty();
+    }
+
     ///
     void SetVolume(G4double volume) {m_volume = volume; };
 

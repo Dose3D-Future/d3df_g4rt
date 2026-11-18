@@ -9,6 +9,7 @@
 #include "G4Run.hh"
 #include "BeamMonitoring.hh"
 #include "MyGeometryTolerance.hh"
+#include "ParallelWorldDoseScorer.hh"
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
@@ -56,6 +57,12 @@ void WorldConstruction::Configure() {
   DefineUnit<std::set<std::string> *>("ParameterizedVolumes");
 
   Configurable::DefaultConfig();   // setup the default configuration for all defined units/parameters
+
+  // Registering has to happen before this detector construction is passed to
+  // G4RunManager. The scorer itself decides from TOML whether it is enabled.
+  m_parallelWorldDoseScorer = new ParallelWorldDoseScorer();
+  if (m_parallelWorldDoseScorer->IsEnabled())
+    RegisterParallelWorld(m_parallelWorldDoseScorer);
   // Configurable::PrintConfig();
 }
 
@@ -232,6 +239,16 @@ void WorldConstruction::ConstructSDandField() {
   if(m_savePhSpEnv) m_savePhSpEnv->DefineSensitiveDetector();
   if(m_phantomEnv) m_phantomEnv->DefineSensitiveDetector();
   if(m_beamMonitoring) m_beamMonitoring->DefineSensitiveDetector();
+  if(m_parallelWorldDoseScorer && m_parallelWorldDoseScorer->IsEnabled())
+    m_parallelWorldDoseScorer->ConstructSD();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+std::vector<VPatient*> WorldConstruction::GetCustomDetectors() const {
+  if (m_parallelWorldDoseScorer && m_parallelWorldDoseScorer->IsEnabled())
+    return {m_parallelWorldDoseScorer};
+  return {};
 }
 
 ////////////////////////////////////////////////////////////////////////////////

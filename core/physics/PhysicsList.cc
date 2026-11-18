@@ -9,6 +9,8 @@
 #include "G4EmParameters.hh"
 #include "StepMax.hh"
 #include "G4OpticalPhoton.hh"
+#include "G4ParallelWorldPhysics.hh"
+#include "ParallelWorldDoseScorer.hh"
 
 // ============================================================================
 // TODO [Refactor]: Consider migrating to a fully modular physics list
@@ -56,6 +58,9 @@ PhysicsList::PhysicsList() {
   // Step limiter
   m_stepLimitPhysicsCtr = std::make_unique<G4StepLimiterPhysics>();
   m_stepLimitPhysicsCtr->SetApplyToAll(true);
+
+  if (ParallelWorldDoseScorer::ConfigEnabled())
+    m_parallelWorldPhysicsCtr = std::make_unique<G4ParallelWorldPhysics>(ParallelWorldDoseScorer::WorldName());
 }
 
 
@@ -100,6 +105,11 @@ void PhysicsList::ConstructProcess() {
 
   /// Mandatory transportation process 
   AddTransportation();  // Enables particles to move through geometry
+
+  // Adds parallel-world transportation. Its ghost boundaries constrain mass
+  // geometry steps, which makes assignment to the regular dose grid exact.
+  if (m_parallelWorldPhysicsCtr)
+    m_parallelWorldPhysicsCtr->ConstructProcess();
 
   /// Electromagnetic physics processes (standard EM model) 
   m_emPhysicsModelCtr->ConstructProcess();  // Main EM model (e.g., Livermore, Penelope, Opt3...)

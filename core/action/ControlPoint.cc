@@ -50,31 +50,31 @@ void ControlPointRun::InitializeScoringCollection(){
             auto& scoring_collection = m_hashed_scoring_map.at(run_collection_name);
             // Try to get scoring collection from any scoring volume in the world..
             std::map<std::size_t, VoxelHit> sc;
-            if(Service<GeoSvc>()->Patient())
-                sc = Service<GeoSvc>()->Patient()->GetScoringHashedMap(run_collection_name,scoring_type);
-            if(sc.empty()){
+            bool scoring_supported = false;
+            if(Service<GeoSvc>()->Patient()) {
+                auto patient = Service<GeoSvc>()->Patient();
+                sc = patient->GetScoringHashedMap(run_collection_name,scoring_type);
+                scoring_supported = !sc.empty() || patient->HasScoring(run_collection_name, scoring_type);
+            }
+            if(!scoring_supported){
                 auto customDetectors = Service<GeoSvc>()->CustomDetectors();
                 for(auto& cd : customDetectors){
                     sc = cd->GetScoringHashedMap(run_collection_name,scoring_type);
-                    if (!sc.empty())
+                    scoring_supported = !sc.empty() || cd->HasScoring(run_collection_name, scoring_type);
+                    if (scoring_supported)
                         break;
                 }
             }
-            if(sc.empty()){
+            if(!scoring_supported){
                 LOGSVC_WARN("ControlPoint","Couldn't get scoring collection for {}/{}",run_collection_name,Scoring::to_string(scoring_type));
+                continue;
             }
             //
                 LOGSVC_INFO("ControlPoint","Added scoring collection type: {}",Scoring::to_string(scoring_type));
             scoring_collection[scoring_type] = sc;
-            if(scoring_collection[scoring_type].empty()){
-
-                LOGSVC_INFO("ControlPoint","Erasing empty scoring collection {}",Scoring::to_string(scoring_type));
-                scoring_collection.erase(scoring_type);
-            }
+            if(scoring_collection[scoring_type].empty())
+                LOGSVC_INFO("ControlPoint","Initialized sparse scoring collection {}",Scoring::to_string(scoring_type));
             else
-                // continue;
-
-
                 LOGSVC_INFO("ControlPoint","Scoring collection size for {}: {}",Scoring::to_string(scoring_type),scoring_collection.at(scoring_type).size());
         }
         // G4cout << "Run scoring map size: " << m_hashed_scoring_map[run_collection_name].size() << G4endl;
@@ -95,9 +95,19 @@ void ControlPointRun::Merge(const G4Run* worker_run){
             //
                 LOGSVC_INFO("ControlPoint","Scoring type: {}",Scoring::to_string(type));
             auto& hashed_scoring_left = scoring.second;
-            const auto& hashed_scoring_right = right.at(type);
+            auto right_type = right.find(type);
+            if (right_type == right.end())
+                continue;
+            const auto& hashed_scoring_right = right_type->second;
+            for(const auto& hashed_voxel_right : hashed_scoring_right){
+                auto left_voxel = hashed_scoring_left.find(hashed_voxel_right.first);
+                if (left_voxel == hashed_scoring_left.end()) {
+                    hashed_scoring_left.emplace(hashed_voxel_right.first, hashed_voxel_right.second);
+                    continue;
+                }
+                left_voxel->second.Cumulate(hashed_voxel_right.second,isVoxel); // VoxelHit+=VoxelHit
+            }
             for(auto& hashed_voxel : hashed_scoring_left){
-                hashed_voxel.second.Cumulate(hashed_scoring_right.at(hashed_voxel.first),isVoxel); // VoxelHit+=VoxelHit
                 auto voxel_volume = hashed_voxel.second.GetVolume();
                 if(isVoxel && voxel_volume < cell_volume){
                     //
@@ -663,7 +673,11 @@ void ControlPoint::FillEventCollection(const G4String& run_collection, VoxelHits
                 default:
                     break;
             }
-            current_scoring_collection.at(hashed_id).Cumulate(*hit,exact_volume_match);
+            auto accumulated_hit = current_scoring_collection.find(hashed_id);
+            if (accumulated_hit == current_scoring_collection.end())
+                current_scoring_collection.emplace(hashed_id, *hit);
+            else
+                accumulated_hit->second.Cumulate(*hit,exact_volume_match);
         }
     }
 }
@@ -751,3 +765,5 @@ double ControlPoint::GetJawAperture(const std::string& side) const{
     }
     return 0.; // never reached, prevent warning
 }
+
+

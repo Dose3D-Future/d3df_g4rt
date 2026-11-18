@@ -17,6 +17,7 @@ class PatientGeometry;
 class SavePhSpConstruction;
 class LinacGeometry;
 class BeamMonitoring;
+class ParallelWorldDoseScorer;
 
 ///\class WorldConstruction
 ///\brief The top level world volume construction factory. Geant4 app manner.
@@ -73,9 +74,7 @@ class WorldConstruction : public G4VUserDetectorConstruction,
   ///
   void Configure() override;
 
-  virtual std::vector<VPatient*> GetCustomDetectors() const {
-    return std::vector<VPatient*>();
-  }
+  virtual std::vector<VPatient*> GetCustomDetectors() const;
   
   protected:
   ///
@@ -118,6 +117,9 @@ class WorldConstruction : public G4VUserDetectorConstruction,
 
   ///
   BeamMonitoring* m_beamMonitoring = nullptr;
+
+  /// Optional regular dose grid constructed in a Geant4 parallel world.
+  ParallelWorldDoseScorer* m_parallelWorldDoseScorer = nullptr;
 
   ///
   G4VPhysicalVolume* m_worldPV = nullptr;

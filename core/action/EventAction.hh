@@ -25,9 +25,9 @@ class EventAction : public G4UserEventAction {
 
   void EndOfEventAction(const G4Event *);
 
-  private:
-  const G4double printProgress;
-  G4int totalNoOfEvents;
+  /// Reset the process-wide progress counter before a new run starts.
+  static void ResetProgress(G4int totalEvents, G4double frequency);
+
 };
 
 #endif // Dose3D_EVENTACTION_HH

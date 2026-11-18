@@ -31,6 +31,7 @@
 #include <memory>
 
 class G4VPhysicsConstructor;
+class G4ParallelWorldPhysics;
 
 ///\class PhysicsList
 class PhysicsList : public G4VModularPhysicsList {
@@ -79,6 +80,7 @@ class PhysicsList : public G4VModularPhysicsList {
     std::unique_ptr<G4IonPhysics> m_ionPhysicsCtr;
     std::unique_ptr<G4StoppingPhysics> m_stoppingPhysicsCtr;
     std::unique_ptr<G4StepLimiterPhysics> m_stepLimitPhysicsCtr;
+    std::unique_ptr<G4ParallelWorldPhysics> m_parallelWorldPhysicsCtr;
 
 };
 

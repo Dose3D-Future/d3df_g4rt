@@ -40,9 +40,13 @@ void VPatientSD::AddHitsCollection(const G4String&runCollName, const G4String& h
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-void VPatientSD::AddScoringVolume(const G4String& runCollName, const G4String& hitsCollName, const G4Box& scoringBox, int scoringNX, int scoringNY, int scoringNZ, const G4ThreeVector& translation){
+void VPatientSD::AddScoringVolume(const G4String& runCollName, const G4String& hitsCollName,
+                                  const G4Box& scoringBox, int scoringNX, int scoringNY,
+                                  int scoringNZ, const G4ThreeVector& translation,
+                                  G4bool sparseChannels){
   AddHitsCollection(runCollName,hitsCollName);
   SetScoringParameterization(hitsCollName,scoringNX,scoringNY,scoringNZ);
+  GetScoringVolumePtr(hitsCollName)->m_sparseChannels = sparseChannels;
   SetScoringVolume(hitsCollName,scoringBox,translation);
   if (Service<ConfigSvc>()->GetValue<bool>("RunSvc", "NTupleAnalysis")){
     auto isVoxelised = false;
@@ -272,18 +276,19 @@ G4String VPatientSD::GetScoringHcName(G4int hitsCollId) const {
 ///
 void VPatientSD::InitializeChannelsID(){
   for(const auto& i_sd : m_scoring_volumes){
+    if (i_sd.second->m_sparseChannels) {
+      i_sd.second->ResetHitCollectionIndices();
+      continue;
+    }
     auto& channelHCollectionIndex = i_sd.second->m_channelHCollectionIndex;
     if(channelHCollectionIndex.empty()) {
-      auto nvX  = i_sd.second->m_nVoxelsX;
-      auto nvY  = i_sd.second->m_nVoxelsY;
-      auto nvZ  = i_sd.second->m_nVoxelsZ;
-      auto max_unique_index = static_cast<int>(i_sd.second->LinearizeIndex(nvX,nvY,nvZ));
-      channelHCollectionIndex.reserve(max_unique_index);
-      for (int i = 0; i < max_unique_index; ++i){
-        channelHCollectionIndex.emplace_back(-1);
-      }
-  } else // reset of the vector (happens for each event initialization)
-      std::fill(channelHCollectionIndex.begin(), channelHCollectionIndex.end(), -1);
+      channelHCollectionIndex.assign(i_sd.second->GetChannelCount(), -1);
+    } else {
+      auto& touchedChannelIds = i_sd.second->m_touchedChannelIds;
+      for (const auto channelId : touchedChannelIds)
+        channelHCollectionIndex[channelId] = -1;
+      touchedChannelIds.clear();
+    }
 
   }
 }
@@ -337,7 +342,7 @@ void VPatientSD::SetScoringVolume(G4int scoringSdIdx, const G4Box& envelopBox, c
   DEBUG_GEO("VPatientSD:: Voxelized SD range y {} - {}", sdHColPtr->m_rangeMinY, sdHColPtr->m_rangeMaxY);
   DEBUG_GEO("VPatientSD:: Voxelized SD range z {} - {}",sdHColPtr->m_rangeMinZ,sdHColPtr->m_rangeMaxZ);
 
-  // Fill the information about voxels positioning
+  // Voxel centres are computed lazily from these ranges and the voxel index.
   auto nvX = sdHColPtr->m_nVoxelsX;
   auto nvY = sdHColPtr->m_nVoxelsY;
   auto nvZ = sdHColPtr->m_nVoxelsZ;
@@ -345,29 +350,6 @@ void VPatientSD::SetScoringVolume(G4int scoringSdIdx, const G4Box& envelopBox, c
     G4String msg = "SetScoringVolume:: Parameterization is empty! You should call SetScoringParameterization(...) before!";
     FATAL_GEO("{}. Verify your logic...", msg);
     G4Exception("VPatientSD", msg, FatalException,"Verify your logic...");
-  }
-  // Comppute and set voxel position
-  auto& voxelsCentre = sdHColPtr->m_channelCentrePosition;
-  auto max_uniqe_idx = sdHColPtr->LinearizeIndex(nvX,nvY,nvZ);
-  voxelsCentre.reserve(max_uniqe_idx);
-  for (int i = 0; i < static_cast<int>(max_uniqe_idx); ++i){
-        voxelsCentre.emplace_back(G4ThreeVector(-999,-999,-999));
-  }
-
-  auto dx = static_cast<double>(maxX - minX)/nvX; //
-  auto dy = static_cast<double>(maxY - minY)/nvY; //
-  auto dz = static_cast<double>(maxZ - minZ)/nvZ; //
-
-  for (int ix = 0; ix < nvX; ++ix){
-    auto x = minX + dx/2. + ix*dx;
-    for (int iy = 0; iy < nvY; ++iy){
-      auto y = minY + dy/2. + iy*dy;
-      for (int iz = 0; iz < nvZ; ++iz){
-        auto z = minZ + dz/2. + iz*dz;
-        auto current_idx = sdHColPtr->LinearizeIndex(ix,iy,iz);
-        voxelsCentre.at(current_idx)= svc::round_with_prec(G4ThreeVector(x,y,z),4);
-      }
-    }
   }
 }
 
@@ -377,17 +359,57 @@ G4int VPatientSD::ScoringVolume::LinearizeIndex(int idX, int idY, int idZ) const
     return (idX * m_nVoxelsY + idY) * m_nVoxelsZ + idZ;
 }
 
+std::size_t VPatientSD::ScoringVolume::GetChannelCount() const {
+  return static_cast<std::size_t>(m_nVoxelsX) * m_nVoxelsY * m_nVoxelsZ;
+}
+
+G4int VPatientSD::ScoringVolume::GetHitCollectionIndex(G4int voxelId) const {
+  if (!m_sparseChannels) return m_channelHCollectionIndex[voxelId];
+  const auto found = m_sparseChannelHCollectionIndex.find(voxelId);
+  return found == m_sparseChannelHCollectionIndex.end() ? -1 : found->second;
+}
+
+void VPatientSD::ScoringVolume::SetHitCollectionIndex(G4int voxelId,
+                                                       G4int collectionIndex) {
+  if (m_sparseChannels)
+    m_sparseChannelHCollectionIndex[voxelId] = collectionIndex;
+  else {
+    m_channelHCollectionIndex[voxelId] = collectionIndex;
+    m_touchedChannelIds.emplace_back(voxelId);
+  }
+}
+
+void VPatientSD::ScoringVolume::ResetHitCollectionIndices() {
+  if (m_sparseChannels) {
+    m_sparseChannelHCollectionIndex.clear();
+    return;
+  }
+  for (const auto channelId : m_touchedChannelIds)
+    m_channelHCollectionIndex[channelId] = -1;
+  m_touchedChannelIds.clear();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ///
 G4ThreeVector VPatientSD::ScoringVolume::GetVoxelCentre(int idX, int idY, int idZ) const {
-    auto index = LinearizeIndex(idX,idY,idZ);
-  return m_channelCentrePosition.at(index);
+  const auto dx = (m_rangeMaxX - m_rangeMinX) / m_nVoxelsX;
+  const auto dy = (m_rangeMaxY - m_rangeMinY) / m_nVoxelsY;
+  const auto dz = (m_rangeMaxZ - m_rangeMinZ) / m_nVoxelsZ;
+  return svc::round_with_prec(
+      G4ThreeVector(m_rangeMinX + (idX + 0.5) * dx,
+                    m_rangeMinY + (idY + 0.5) * dy,
+                    m_rangeMinZ + (idZ + 0.5) * dz),
+      4);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
 G4ThreeVector VPatientSD::ScoringVolume::GetVoxelCentre(int linearizedId) const {
-    return m_channelCentrePosition.at(linearizedId);
+  const auto idX = linearizedId / (m_nVoxelsY * m_nVoxelsZ);
+  const auto remainder = linearizedId % (m_nVoxelsY * m_nVoxelsZ);
+  const auto idY = remainder / m_nVoxelsZ;
+  const auto idZ = remainder % m_nVoxelsZ;
+  return GetVoxelCentre(idX, idY, idZ);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -541,14 +563,18 @@ void VPatientSD::ProcessHitsCollection(const G4String& hitsCollectionName, G4Ste
   auto voxelIdZ = scoringVolumePtr->GetVoxelID(2, position);
     auto voxelId =  scoringVolumePtr->LinearizeIndex(voxelIdX,voxelIdY,voxelIdZ);
 
-    if(voxelId>=0 && voxelId < scoringVolumePtr->m_channelHCollectionIndex.size() ) {
-      if (scoringVolumePtr->m_channelHCollectionIndex[voxelId] == -1) { // This is new hit within given volume/channel
+    if(voxelId>=0 && static_cast<std::size_t>(voxelId) < scoringVolumePtr->GetChannelCount()) {
+      const auto existingCollectionIndex =
+          scoringVolumePtr->GetHitCollectionIndex(voxelId);
+      if (existingCollectionIndex == -1) { // This is new hit within given volume/channel
 
       auto voxelHit = new VoxelHit();
+      voxelHit->SetStepWiseDose(m_step_wise_dose);
       voxelHit->SetVolume(scoringVolumePtr->GetVoxelVolume());
       voxelHit->SetCentre(scoringVolumePtr->GetVoxelCentre(voxelId));
       voxelHit->SetId(voxelIdX, voxelIdY, voxelIdZ);
       voxelHit->SetGlobalId(m_id_x, m_id_y, m_id_z);
+      voxelHit->SetLabel(scoringVolumePtr->m_run_collection);
       voxelHit->SetStoreTracks(Service<ConfigSvc>()->GetValue<bool>("RunSvc", "StoreTracks"));
       voxelHit->SetGlobalCentre(GetSDCentre());
       voxelHit->Fill(aStep);
@@ -558,18 +584,17 @@ void VPatientSD::ProcessHitsCollection(const G4String& hitsCollectionName, G4Ste
 
       // Add new voxel hit to the hits collection
       auto channelHCollectionIndex = scoringVolumePtr->m_voxelHCollectionPtr->insert(voxelHit) - 1;
-      scoringVolumePtr->m_channelHCollectionIndex[voxelId] = channelHCollectionIndex;
+      scoringVolumePtr->SetHitCollectionIndex(voxelId, channelHCollectionIndex);
       }
       else { // This is already existing hit within given volume/channel
       // Get voxel hit for given volume/channel
-      auto channelHCollectionIndex = scoringVolumePtr->m_channelHCollectionIndex[voxelId];
-      auto voxelHit = (*scoringVolumePtr->m_voxelHCollectionPtr)[channelHCollectionIndex];
+      auto voxelHit = (*scoringVolumePtr->m_voxelHCollectionPtr)[existingCollectionIndex];
       voxelHit->Update(aStep);
       voxelHit->FillTrackUserInfo<PatientTrackInfo>(aStep);
 
     }
   } else {
-      auto maxId = scoringVolumePtr->m_channelHCollectionIndex.size()-1;
+      auto maxId = scoringVolumePtr->GetChannelCount()-1;
       DEBUG_GEO("Out of scope ChannelId: {}. Max voxel ID is: {}.\nPosition: {}\nIdX={}, IdY={}, IdZ={}",
                   voxelId,maxId,position,voxelIdX,voxelIdY,voxelIdZ);
   }

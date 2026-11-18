@@ -10,66 +10,43 @@
 #include "Services.hh"
 #include "G4SDManager.hh"
 #include "G4UImanager.hh"
+#include "LogSvc.hh"
+
+#include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <mutex>
+
+namespace {
+std::atomic<G4int> completedEvents{0};
+std::atomic<G4int> nextProgressEvent{1};
+G4int progressInterval = 1;
+G4int progressTotal = 0;
+std::mutex progressMutex;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 ///
 EventAction::EventAction()
-    : printProgress(Service<ConfigSvc>()->GetValue<double>("RunSvc", "PrintProgressFrequency")) {}
+    = default;
 
 /////////////////////////////////////////////////////////////////////////////
 ///
-void EventAction::BeginOfEventAction(const G4Event *) {
-  totalNoOfEvents = Service<RunSvc>()->CurrentControlPoint()->GetNEvts();
-}
+void EventAction::BeginOfEventAction(const G4Event *) {}
 
-/////////////////////////////////////////////////////////////////////////////
-/// default methods to get date and time in C++ are accurate up to seconds
-// to be more precise we do a bit of hacking and include also microseconds
-// following https://stackoverflow.com/questions/24686846/get-current-time-in-milliseconds-or-hhmmssmmm-format/35157784
-/// \return string with current date and time including microseconds
-std::string time_in_HH_MM_SS_MMM() {
-  using namespace std::chrono;
-
-  // get current time
-  auto now = system_clock::now();
-
-  // get number of milliseconds for the current second
-  // (remainder after division into seconds)
-  auto current_ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
-
-  // convert to std::time_t in order to convert to std::tm (broken time)
-  auto timer = system_clock::to_time_t(now);
-
-  // convert to broken time
-  std::tm bt = *std::localtime(&timer);
-
-  std::ostringstream oss;
-
-  oss << std::put_time(&bt, "%F %T");  // YY-MM-DD HH:MM:SS
-  oss << '.' << std::setfill('0') << std::setw(3) << current_ms.count();
-
-  return oss.str();
+void EventAction::ResetProgress(G4int totalEvents, G4double frequency) {
+  std::lock_guard<std::mutex> lock(progressMutex);
+  progressTotal = std::max(0, totalEvents);
+  const auto requestedInterval = static_cast<G4int>(std::lround(frequency * progressTotal));
+  progressInterval = std::max(1, requestedInterval);
+  completedEvents.store(0, std::memory_order_relaxed);
+  nextProgressEvent.store(std::min(progressInterval, progressTotal), std::memory_order_release);
 }
 
 /////////////////////////////////////////////////////////////////////////////
 /// Print progress information according to progress frequency defined by user
 /// \param evt
 void EventAction::EndOfEventAction(const G4Event *evt) {
-  auto eventID = evt->GetEventID();
-  if ((eventID % std::lround(printProgress * totalNoOfEvents) == 0)) {
-    std::ostringstream oss;
-    oss << "---> " << 100.0 * printProgress * eventID / std::lround(printProgress * totalNoOfEvents) << " %";
-    oss << " ( Event: " << eventID << " / " << totalNoOfEvents << " )  ";
-    oss << time_in_HH_MM_SS_MMM();
-    oss << G4endl;
-    G4cout << oss.str() << std::flush;
-  } else if (eventID == totalNoOfEvents - 1) {
-    std::ostringstream oss;
-    oss << "---> 100% ( Event: " << eventID << " / " << totalNoOfEvents << " )  ";
-    oss << time_in_HH_MM_SS_MMM();
-    oss << G4endl;
-    G4cout << oss.str() << std::flush;
-  }
   auto configSvc = Service<ConfigSvc>();
 
   if (configSvc->GetValue<bool>("RunSvc", "BeamAnalysis"))
@@ -86,4 +63,22 @@ void EventAction::EndOfEventAction(const G4Event *evt) {
 
   if (configSvc->GetValue<bool>("RunSvc", "RunAnalysis"))
     RunAnalysis::GetInstance()->EndOfEventAction(evt);
+
+  // Event IDs are assigned globally, but events finish out of order in MT mode.
+  // Count completions instead, and let only one worker emit each progress mark.
+  const auto completed = completedEvents.fetch_add(1, std::memory_order_acq_rel) + 1;
+  if (progressTotal > 0 && completed >= nextProgressEvent.load(std::memory_order_acquire)) {
+    std::lock_guard<std::mutex> lock(progressMutex);
+    const auto threshold = nextProgressEvent.load(std::memory_order_relaxed);
+    if (completed >= threshold && threshold <= progressTotal) {
+      const auto reported = std::min(completed, progressTotal);
+      const auto percent = 100.0 * reported / progressTotal;
+      LOGSVC_INFO("Progress", "{:5.2f}% ({}/{} events completed)",
+                  percent, reported, progressTotal);
+      const auto next = (reported == progressTotal)
+                            ? progressTotal + 1
+                            : std::min(progressTotal, threshold + progressInterval);
+      nextProgressEvent.store(next, std::memory_order_release);
+    }
+  }
 }

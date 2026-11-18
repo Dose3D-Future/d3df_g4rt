@@ -1,0 +1,7 @@
+/gps/particle gamma
+/gps/pos/type Point
+/gps/pos/centre 0.0 6.0 -100.0 mm
+/gps/ang/type direction
+/gps/direction 0.0 0.0 1.0
+/gps/ene/type Mono
+/gps/ene/mono 6.0 MeV

@@ -13,6 +13,7 @@
 #include "G4VSensitiveDetector.hh"
 #include "globals.hh"
 #include "G4Box.hh"
+#include <unordered_map>
 
 class G4HCofThisEvent;
 class G4Step;
@@ -45,10 +46,6 @@ class VPatientSD : public G4VSensitiveDetector{
           G4double m_rangeMinY=0, m_rangeMaxY=0;
           G4double m_rangeMinZ=0, m_rangeMaxZ=0;
 
-          /// Linearized channel (nVoxels) position (defined for X * Y * Z)
-          std::vector<G4ThreeVector> m_channelCentrePosition;
-
-
           /// The HC ID that is namaged by SDManager. Here it's placed as helper duplicate
           G4int id = -1; // TODO: Do I really need this here?
 
@@ -70,6 +67,15 @@ class VPatientSD : public G4VSensitiveDetector{
           /// Linearized channel (nVoxels) hit collection index (defined for X * Y * Z)
           std::vector<G4int> m_channelHCollectionIndex;
 
+          /// Channels touched in the current event. Resetting only these keeps
+          /// event initialisation proportional to occupancy, not grid size.
+          std::vector<G4int> m_touchedChannelIds;
+
+          /// Parallel-world grids are intentionally sparse and can contain
+          /// millions of voxels. Do not allocate a dense array per worker.
+          G4bool m_sparseChannels = false;
+          std::unordered_map<G4int, G4int> m_sparseChannelHCollectionIndex;
+
           ///
           G4String m_shape = "Box"; // or Farmer30013
 
@@ -81,6 +87,11 @@ class VPatientSD : public G4VSensitiveDetector{
           
           ///
           G4int LinearizeIndex(int idX, int idY, int idZ) const;
+
+          std::size_t GetChannelCount() const;
+          G4int GetHitCollectionIndex(G4int voxelId) const;
+          void SetHitCollectionIndex(G4int voxelId, G4int collectionIndex);
+          void ResetHitCollectionIndices();
 
           ///
           G4bool IsInside(const G4ThreeVector& position) const;
@@ -122,6 +133,9 @@ class VPatientSD : public G4VSensitiveDetector{
       /// 
           
   protected:
+      /// Use the material density of every individual mass-world step. This is
+      /// intended for overlay grids that may cross material boundaries.
+      G4bool m_step_wise_dose = false;
       /// Centre of SensitiveDetector
       /// NOTE: In global frame!
       G4ThreeVector m_sd_centre;
@@ -153,7 +167,11 @@ class VPatientSD : public G4VSensitiveDetector{
       void EndOfEvent(G4HCofThisEvent* HCE) override;
 
       ///
-    void AddScoringVolume(const G4String& runCollName, const G4String& hitsCollName, const G4Box& scoringBox, int scoringNX, int scoringNY, int scoringNZ, const G4ThreeVector& translation=G4ThreeVector());
+    void AddScoringVolume(const G4String& runCollName, const G4String& hitsCollName,
+                          const G4Box& scoringBox, int scoringNX, int scoringNY,
+                          int scoringNZ,
+                          const G4ThreeVector& translation = G4ThreeVector(),
+                          G4bool sparseChannels = false);
 
       ///
       G4int GetScoringVolumeIdx(const G4String& hitsCollName) const;
@@ -191,6 +209,8 @@ class VPatientSD : public G4VSensitiveDetector{
 
       ///
       void ProcessHitsCollection(const G4String& hitsCollectionName, G4Step* aStep);
+
+      void SetStepWiseDose(G4bool value) { m_step_wise_dose = value; }
 
 };
 

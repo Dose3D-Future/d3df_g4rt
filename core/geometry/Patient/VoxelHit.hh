@@ -62,6 +62,10 @@ class VoxelHit final : public G4VHit {
     ///
     G4double m_Mass = 0.;
 
+    /// For overlay grids crossing mass-geometry boundaries, accumulate each
+    /// step contribution with the density of the material in that step.
+    G4bool m_StepWiseDose = false;
+
     ///
     G4double m_Volume = 0.;
 
@@ -158,6 +162,7 @@ class VoxelHit final : public G4VHit {
 
   ///
   void SetMass(G4double mass) { m_Voxel.m_Mass = mass; }
+  void SetStepWiseDose(G4bool value) { m_Voxel.m_StepWiseDose = value; }
 
   ///
   G4ThreeVector GetGravCentre() const { return m_Voxel.m_GravitationalCentre; }
