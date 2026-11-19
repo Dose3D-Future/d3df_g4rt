@@ -129,9 +129,6 @@ class GeoSvc : public TomlConfigurable{
   void WriteWorldToTFile();
 
   ///
-  void WritePatientToCsvCT();
-
-  ///
   void WritePatientToDicomCT();
 
   ///

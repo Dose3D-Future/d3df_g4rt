@@ -9,9 +9,10 @@ import pandas as pd
 import pydicom
 import pydicom.uid
 from pydicom.dataset import Dataset, FileDataset
-from pydicom.uid import ExplicitVRLittleEndian
+from pydicom.uid import ExplicitVRLittleEndian, CTImageStorage
 import json
 from pathlib import Path
+import copy
 
 # def CtSvc():
 #     logger.info("Initializing CT scaner.")
@@ -66,6 +67,7 @@ class CtSvc():
             pass
         print(f"Output was set to: {output_path}")
 
+    @classmethod
     def set_project_path(cls, project_path):
         # Not as set_hounsfield_dictiobnary cause also it sett path to template CT.dcm
         cls.__project_path = project_path
@@ -85,92 +87,62 @@ class CtSvc():
 # ------------------------------- Priv Class Methods ----------------------------
 
 
-    def __get_metadata_from_file(self):
-        data = pd.read_csv(f'{self.__data_path}/ct_series_metadata.csv',header=None,index_col=0)
-        data_dict = data.to_dict(orient='dict')[1]
-        self.__x_min = round(float(data_dict["x_min"]),4)
-        self.__x_max = round(float(data_dict["x_max"]),4)
-        self.__y_min = round(float(data_dict["y_min"]),4)
-        self.__y_max = round(float(data_dict["y_max"]),4)
-        self.__z_min = round(float(data_dict["z_min"]),4)
-        self.__z_max = round(float(data_dict["z_max"]),4)
-        self.__pixel_in_x = round(float(data_dict["x_resolution"]),4)
-        self.__pixel_in_y = round(float(data_dict["y_resolution"]),4)
-        self.__pixel_in_z = round(float(data_dict["z_resolution"]),4)
-        self.__step_x = round(float(data_dict["x_step"]),4)
-        self.__step_y = round(float(data_dict["y_step"]),4)
-        self.__step_z = round(float(data_dict["z_step"]),4)
-        self.__SSD = round(float(data_dict["SSD"]),4)
+    def __set_metadata_from_dict(self, cfg):
+        self.__x_min = round(float(cfg["initX"]), 4)
+        self.__y_min = round(float(cfg["initY"]), 4)
+        self.__z_min = round(float(cfg["initZ"]), 4)
+        self.__pixel_in_x = round(float(cfg["xRes"]), 4)
+        self.__pixel_in_y = round(float(cfg["yRes"]), 4)
+        self.__pixel_in_z = round(float(cfg["zRes"]), 4)
+        self.__step_x = round(float(cfg["sizeX"]), 4)
+        self.__step_y = round(float(cfg["sizeY"]), 4)
+        self.__step_z = round(float(cfg["sizeZ"]), 4)
+        self.__x_max = round(self.__x_min + self.__step_x * self.__pixel_in_x, 4)
+        self.__y_max = round(self.__y_min + self.__step_y * self.__pixel_in_y, 4)
+        self.__z_max = round(self.__z_min + self.__step_z * self.__pixel_in_z, 4)
+        self.__SSD = round(float(cfg.get("SSD", 1000.0)), 4)
 
-    def __set_image_properties(self, data_path):
-        self.__data_path = data_path
-        self.__get_metadata_from_file()
-        self.__start_Dicom_series()
-
-
-
-    def __start_Dicom_series(self):
+    def __start_Dicom_series(self, dicom_metadata: Dataset):
         self.__set_hounsfield_dictiobnary()
-        name = f"{self.__project_path}config/ct_slice_template.dcm"
-        ds = pydicom.dcmread(name)
+        ds = copy.deepcopy(dicom_metadata)
+        self.__uid_prefix = dicom_metadata._org_uid_root
 
-        # --------------- overwrite metadata ----------------
-        ds.file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid(prefix="1.2.826.0.1.3680043.8.498.997.")
-        ds.file_meta.ImplementationClassUID = "1.2.826.0.1.3680043.8.498.997"
-        ds.file_meta.ImplementationVersionName = "pydicom 3.0.1"
-        ds.file_meta.SourceApplicationEntityTitle = "Dose-3D"
-
-        # -------------- overwrite flesh ------------------
-        ds.SOPClassUID = ds.file_meta.MediaStorageSOPClassUID
+        ds.file_meta.MediaStorageSOPClassUID = CTImageStorage
+        ds.file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid(prefix=self.__uid_prefix)
+        
+        ds.SOPClassUID = CTImageStorage
         ds.SOPInstanceUID = ds.file_meta.MediaStorageSOPInstanceUID
-        ds.StudyTime = "123030"
-        ds.SeriesTime = "123100"
-        ds.StudyDate = datetime.datetime.now().strftime('%Y%m%d')
-        # ds.StudyDate = datetime.datetime.now().strftime('%Y%m%d')
-        ds.SeriesDate = datetime.datetime.now().strftime('%Y%m%d')
-        # ds.SeriesDate = datetime.datetime.now().strftime('%Y%m%d')
-        ds.ContentDate = datetime.datetime.now().strftime('%Y%m%d')
-        # ds.ContentDate = datetime.datetime.now().strftime('%Y%m%d')
-        ds.Manufacturer = "Dose3D"
-        ds.InstitutionName = "AGH WFiIS"
-        ds.InstitutionAddress = "Kraków"
-        ds.SeriesDescription = "Test slice of CT"
-        ds.ManufacturerModelName = "DICOMaker v. alpha v0.19.33"
-        ds.PatientName = self.__label
-        ds.StudyDescription = "Describe me!"
-        ds.PatientID = "0123456789"
-        ds.PatientBirthDate = '20000101'
-        ds.SoftwareVersions = "DICOMaker v. alpha v0.19.33"
-        # Should it be set at same distance?
+        ds.Modality = "CT"
+        ds.ImageType = ["ORIGINAL", "PRIMARY", "AXIAL"]
+        ds.SeriesDescription = "CT Slices"
+
+        now = datetime.datetime.now()
+        ds.SeriesDate = now.strftime('%Y%m%d')
+        ds.SeriesTime = now.strftime('%H%M%S')
+        ds.ContentDate = now.strftime('%Y%m%d')
+
         ds.DistanceSourceToDetector = self.__SSD
         ds.DistanceSourceToPatient = self.__SSD
-        # ds.TableHeight = "To remove"
-        # ds.RotationDirection = "To remove"
-        # ds.ExposureTime = "0"
-        # ds.XRayTubeCurrent = "0"
-        # ds.Exposure = "0"
-        # ds.FilterType = "0"
-        # ds.GeneratorPower = "0"
-        ds.StudyInstanceUID = pydicom.uid.generate_uid(prefix="1.2.826.0.1.3680043.8.498.997.")
-        ds.SeriesInstanceUID  = pydicom.uid.generate_uid(prefix="1.2.826.0.1.3680043.8.498.997.")
-        ds.StudyID = "1"
-        ds.SeriesNumber = "1"
-        ds.FrameOfReferenceUID = "1.2.840.10008.15.1.1"
-        ds.PositionReferenceIndicator = "XZ"
-        ds.ImageOrientationPatient = r"1\0\0\0\1\0"
-        ds.PatientPosition = "HFS"
+        ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
+
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.BitsAllocated = 16
+        ds.BitsStored = 16
+        ds.HighBit = 15
         ds.PixelRepresentation = 1
-        ds.WindowCenter = r"125.0"
-        ds.WindowWidth = r"600.0"
-        ds.RescaleIntercept = r"0.0"
+        ds.WindowCenter = "125.0"
+        ds.WindowWidth = "600.0"
+        ds.RescaleIntercept = "0.0"
+        ds.RescaleSlope = "1.0"
+        ds.RescaleType = "HU"
+
         return ds
-
-
 
     def __write_Dicom_ct_slice(self, rawdata, sliceNumber):
         image2d = rawdata.astype(np.uint16)
         ds = self.series
-        ds.file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid(prefix="1.2.826.0.1.3680043.8.498.997.1997.")
+        ds.file_meta.MediaStorageSOPInstanceUID = pydicom.uid.generate_uid(prefix=self.__uid_prefix)
         ds.SOPInstanceUID = ds.file_meta.MediaStorageSOPInstanceUID
         ds.Rows = image2d.shape[0]
         ds.Columns = image2d.shape[1]
@@ -193,44 +165,38 @@ class CtSvc():
         ds.save_as(self.__output_path+self.__label+f"{sliceNumber}"+r".dcm")
         print(f"I just saved {self.__label}{sliceNumber}.dcm")
 
-    def __write_whole_Dicom_ct_from_csv(self):
-        # logger.debug("Writing the whole DICOM CT")
-        self.series = self.__start_Dicom_series()
+    def __write_whole_Dicom_ct(self, voxel_materials, dicom_metadata: Dataset):
+        self.series = self.__start_Dicom_series(dicom_metadata)
         self.instance_UID = self.series.SOPInstanceUID
-        images_path = Path(self.__data_path)
-        print("Start iteration over images")
-        # Collect only CT slice files, excluding metadata and other CSV files
-        images = sorted([
-            path
-            for path in images_path.glob("img*.csv")
-        ])
-        print(f"Found {len(images)} CT slices")
-        for iterator, image_path in enumerate(images, start=1):
+        
+        print("Start iteration over images in memory")
+        
+        y_res = int(self.__pixel_in_y)
+        x_res = int(self.__pixel_in_x)
+        z_res = int(self.__pixel_in_z)
+        slice_size = x_res * z_res
+        
+        print(f"Generating {y_res} CT slices...")
+        
+        for y in range(y_res):
+            start_idx = y * slice_size
+            end_idx = start_idx + slice_size
+            slice_materials = voxel_materials[start_idx:end_idx]
+            
             image_data = (
-                pd.read_csv(image_path)["Material"]
+                pd.Series(slice_materials)
                 .map(self.__hounsfield_units_dictionary)
                 .values
                 .reshape(
-                    int(self.__pixel_in_z),
-                    int(self.__pixel_in_x),
+                    z_res,
+                    x_res,
                     order="F"
                 )
             )
+            
+            iterator = y + 1
             self.__write_Dicom_ct_slice(image_data, iterator)
-
 # -------------------------------- Public Methods --------------------------------
-
-    def create_ct_series(self,directory_path):
-        # print("Heloł")
-        # print(directory_path)
-        # directory_path = "test"
-        self.__set_image_properties(directory_path)
-        self.__write_whole_Dicom_ct_from_csv()
-
-
-# if __name__=="__main__":
-    # scannerCT = CtScanSvc(label="CT_")
-    # scannerCT.set_output_path("/mnt/c/Users/Jakub/Desktop/CT_Base/FinalOutput")
-    # start_time = time.time()
-    # scannerCT.create_ct_series("/home/g4rt/workDir/develop/g4rt/output/ct_creator/geo/DikomlikeData")
-    # print("--- %s seconds ---" % (time.time() - start_time))
+    def create_ct_series(self, dicom_metadata: Dataset, cfg, voxel_materials):
+        self.__set_metadata_from_dict(cfg)
+        self.__write_whole_Dicom_ct(voxel_materials, dicom_metadata)
