@@ -28,6 +28,7 @@ def generate_base_metadata(patient_metadata_path: str,
                            patient_description: str = ""
                            ) -> Dataset:
     ds = Dataset()
+    ds.preamble = b"\x00" * 128
     ds.file_meta = FileMetaDataset()
     
     with open(patient_metadata_path, 'r', encoding='utf-8') as f:
@@ -45,7 +46,8 @@ def generate_base_metadata(patient_metadata_path: str,
         "_STUDY_TIME_": now.strftime("%H%M%S"),
         "_G4RT_VERSION_": app_version,
         "_JOB_NAME_HASH_": job_name_hash,
-        "_ORGANIZATION_UID_": org_uid_root
+        "_ORGANIZATION_UID_": org_uid_root,
+        "_DICOM_UID_ROOT_": dicom_uid_root,
     }
 
     for block_name, block_data in template.items():
