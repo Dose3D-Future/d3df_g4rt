@@ -56,9 +56,11 @@ std::string time_in_HH_MM_SS_MMM() {
 /// \param evt
 void EventAction::EndOfEventAction(const G4Event *evt) {
   auto eventID = evt->GetEventID();
-  if ((eventID % std::lround(printProgress * totalNoOfEvents) == 0)) {
+  const long printStep = std::max(1L, std::lround(printProgress * totalNoOfEvents));
+
+  if (totalNoOfEvents > 0 && eventID % printStep == 0) {
     std::ostringstream oss;
-    oss << "---> " << 100.0 * printProgress * eventID / std::lround(printProgress * totalNoOfEvents) << " %";
+    oss << "---> " << (100.0 * eventID / totalNoOfEvents) << " %";
     oss << " ( Event: " << eventID << " / " << totalNoOfEvents << " )  ";
     oss << time_in_HH_MM_SS_MMM();
     oss << G4endl;
