@@ -27,7 +27,7 @@ class ICtSvc {
       ~ICtSvc();
   
       void set_paths(const std::string& output_path) const;
-      void create_ct_series(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const;
+      void create_ct_series(const py::object& dicom_metadata, const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const;
   
   private:
       class Impl;

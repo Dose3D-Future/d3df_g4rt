@@ -49,7 +49,7 @@ class ICtSvc::Impl {
           m_py_dicom_ct.attr("set_project_path")(PROJECT_DATA_PATH);
       }
   
-      void create_ct_series(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const {
+      void create_ct_series(const py::object& dicom_metadata,const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const {
               py::dict py_cfg;
               py_cfg["name"]  = cfg.name;
               py_cfg["xRes"]  = cfg.xRes;
@@ -61,7 +61,7 @@ class ICtSvc::Impl {
               py_cfg["sizeX"] = cfg.sizeX;
               py_cfg["sizeY"] = cfg.sizeY;
               py_cfg["sizeZ"] = cfg.sizeZ;
-              m_py_dicom_ct.attr("create_ct_series")(py_cfg, voxel_materials);
+              m_py_dicom_ct.attr("create_ct_series")(dicom_metadata, py_cfg, voxel_materials);
           }
   
   private:
@@ -79,8 +79,8 @@ void ICtSvc::set_paths(const std::string& output_path) const {
     m_impl->set_paths(output_path);
 }
 
-void ICtSvc::create_ct_series(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const {
-    m_impl->create_ct_series(cfg, voxel_materials);
+void ICtSvc::create_ct_series(const py::object& dicom_metadata,const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const {
+    m_impl->create_ct_series(dicom_metadata, cfg, voxel_materials);
 }
 
 
@@ -437,7 +437,7 @@ unsigned DicomSvc::GetRTPlanNumberOfControlPoints(const std::string& planFile,un
 ///
 void DicomSvc::ExportPatientToCT(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials, const std::string& output_path) const {
     m_ct_svc.set_paths(output_path);
-    m_ct_svc.create_ct_series(cfg, voxel_materials);
+    m_ct_svc.create_ct_series(m_dicom_metadata, cfg, voxel_materials);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

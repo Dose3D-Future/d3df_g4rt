@@ -78,4 +78,5 @@ def generate_base_metadata(patient_metadata_path: str,
                 setattr(ds, key, final_val)
 
     ds._dicom_uid_root = dicom_uid_root
+    ds._org_uid_root = f"{org_uid_root.rstrip('.')}."
     return ds
