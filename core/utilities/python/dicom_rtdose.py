@@ -3,6 +3,7 @@ import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import UID, ExplicitVRLittleEndian, generate_uid
 from pydicom.sequence import Sequence
+import copy
 
 def write_rtdose(dicom_metadata: Dataset, grid_meta: dict, dose_grid, output_file): #new
     """
@@ -16,7 +17,7 @@ def write_rtdose(dicom_metadata: Dataset, grid_meta: dict, dose_grid, output_fil
 
     number_of_frames, rows, columns = dose_arr.shape
     
-    ds = dicom_metadata.copy()
+    ds = copy.deepcopy(dicom_metadata)
 
     # --- File Meta Information ---
     file_meta = FileMetaDataset()

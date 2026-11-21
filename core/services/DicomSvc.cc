@@ -49,9 +49,22 @@ class ICtSvc::Impl {
           m_py_dicom_ct.attr("set_project_path")(PROJECT_DATA_PATH);
       }
   
-      void create_ct_series(const std::string& series_csv_path) const {
-          m_py_dicom_ct.attr("create_ct_series")(series_csv_path);
-      }
+      void create_ct_series(const py::object& dicom_metadata,const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const {
+              py::dict py_cfg;
+              py_cfg["name"]  = cfg.name;
+              py_cfg["xRes"]  = cfg.xRes;
+              py_cfg["yRes"]  = cfg.yRes;
+              py_cfg["zRes"]  = cfg.zRes;
+              py_cfg["initX"] = cfg.initX;
+              py_cfg["initY"] = cfg.initY;
+              py_cfg["initZ"] = cfg.initZ;
+              py_cfg["sizeX"] = cfg.sizeX;
+              py_cfg["sizeY"] = cfg.sizeY;
+              py_cfg["sizeZ"] = cfg.sizeZ;
+              py_cfg["windowPreset"] = Service<ConfigSvc>()->GetValue<std::string>("DicomSvc", "WindowPreset");
+
+              m_py_dicom_ct.attr("create_ct_series")(dicom_metadata, py_cfg, voxel_materials);
+          }
   
   private:
       py::object m_py_dicom_ct;
@@ -68,10 +81,15 @@ void ICtSvc::set_paths(const std::string& output_path) const {
     m_impl->set_paths(output_path);
 }
 
-void ICtSvc::create_ct_series(const std::string& series_csv_path) const {
-    m_impl->create_ct_series(series_csv_path);
+void ICtSvc::create_ct_series(const py::object& dicom_metadata,const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const {
+    m_impl->create_ct_series(dicom_metadata, cfg, voxel_materials);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+///
+DicomSvc::DicomSvc(): Configurable("DicomSvc"){
+  Configure();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
@@ -379,6 +397,21 @@ std::vector<G4double> ICustomPlan::ReadMlcPositioning(const std::string& planFil
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
+void DicomSvc::DefaultConfig(const std::string& unit) {
+  if (unit.compare("WindowPreset") == 0) thisConfig()->SetTValue<std::string>(unit, std::string("soft_tissue"));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+void DicomSvc::Configure() {
+  DefineUnit<std::string>("WindowPreset");
+
+  Configurable::DefaultConfig();  // setup the default configuration for all defined parameters
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
 double DicomSvc::GetRTPlanAngle(int current_beam, int current_controlpoint) const {
   auto rtplanAngleReader = py::module::import("dicom_rtplan_angle");
   // Zakomentowane części kodu - na przyszłość przy większej ilości runów
@@ -424,12 +457,10 @@ unsigned DicomSvc::GetRTPlanNumberOfControlPoints(const std::string& planFile,un
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-void DicomSvc::ExportPatientToCT(const std::string& series_csv_path, const std::string& output_path) const {
-
-    // PyGILState_Release(gstate);
+void DicomSvc::ExportPatientToCT(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials, const std::string& output_path) const {
     m_ct_svc.set_paths(output_path);
-    m_ct_svc.create_ct_series(series_csv_path);
-  }
+    m_ct_svc.create_ct_series(m_dicom_metadata, cfg, voxel_materials);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ///

@@ -8,6 +8,7 @@
 #ifndef Dose3D_DicomSvcSVC_H
 #define Dose3D_DicomSvcSVC_H
 
+#include "PatientGeometry.hh"
 #include "Types.hh"
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
@@ -26,7 +27,7 @@ class ICtSvc {
       ~ICtSvc();
   
       void set_paths(const std::string& output_path) const;
-      void create_ct_series(const std::string& series_csv_path) const;
+      void create_ct_series(const py::object& dicom_metadata, const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials) const;
   
   private:
       class Impl;
@@ -73,7 +74,7 @@ class ICustomPlan : public IPlan {
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-class DicomSvc {
+class DicomSvc : public Configurable{
   private:
     /// \brief The full path the RT-Plan file
     std::string m_rtplan_file;
@@ -89,7 +90,7 @@ class DicomSvc {
     std::vector<int> m_rtplan_beam_n_control_points;
 
     ///
-    DicomSvc() = default;
+    DicomSvc();
 
     ///
     ~DicomSvc() = default;
@@ -112,6 +113,11 @@ class DicomSvc {
     ///
     void InitDicomMetadata();
 
+    ///
+    void Configure() override;
+
+    ///
+    void DefaultConfig(const std::string &unit) override;
   public:
     ///\brief Static method to get instance of this singleton object.
     static DicomSvc* GetInstance();
@@ -148,7 +154,7 @@ class DicomSvc {
     py::object GetMetadata() const { return m_dicom_metadata; }
 
     ///
-    void ExportPatientToCT(const std::string& series_csv_path, const std::string& output_path) const;
+    void ExportPatientToCT(const CtTubeConfig& cfg, const std::vector<std::string>& voxel_materials,const std::string& output_path) const;
 
     ///
     static ControlPointConfig GetControlPointConfig(int id, const std::string& planFile);

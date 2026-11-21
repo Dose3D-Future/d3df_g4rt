@@ -1,0 +1,20 @@
+{
+    "window_presets": {
+        "d3df": {
+            "WindowCenter": 125.0,
+            "WindowWidth": 600.0
+        },
+        "lung": {
+            "WindowCenter": -600,
+            "WindowWidth": 1500
+        },
+        "soft_tissue": {
+            "WindowCenter": 40,
+            "WindowWidth": 400
+        },
+        "bone": {
+            "WindowCenter": 400,
+            "WindowWidth": 1800
+        }
+    }
+}
