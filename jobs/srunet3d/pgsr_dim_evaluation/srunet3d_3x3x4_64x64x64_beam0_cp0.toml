@@ -26,6 +26,9 @@ StorePrimaries = false
 StoreRunInfo= false
 MinimalMode= true
 
+[DicomSvc]
+WindowPreset = "soft_tissue"
+
 [GeoSvc]
 BuildLinac = true
 BuildPatient = true

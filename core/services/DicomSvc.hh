@@ -74,7 +74,7 @@ class ICustomPlan : public IPlan {
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-class DicomSvc {
+class DicomSvc : public Configurable{
   private:
     /// \brief The full path the RT-Plan file
     std::string m_rtplan_file;
@@ -90,7 +90,7 @@ class DicomSvc {
     std::vector<int> m_rtplan_beam_n_control_points;
 
     ///
-    DicomSvc() = default;
+    DicomSvc();
 
     ///
     ~DicomSvc() = default;
@@ -113,6 +113,11 @@ class DicomSvc {
     ///
     void InitDicomMetadata();
 
+    ///
+    void Configure() override;
+
+    ///
+    void DefaultConfig(const std::string &unit) override;
   public:
     ///\brief Static method to get instance of this singleton object.
     static DicomSvc* GetInstance();

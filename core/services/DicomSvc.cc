@@ -61,6 +61,8 @@ class ICtSvc::Impl {
               py_cfg["sizeX"] = cfg.sizeX;
               py_cfg["sizeY"] = cfg.sizeY;
               py_cfg["sizeZ"] = cfg.sizeZ;
+              py_cfg["windowPreset"] = Service<ConfigSvc>()->GetValue<std::string>("DicomSvc", "WindowPreset");
+
               m_py_dicom_ct.attr("create_ct_series")(dicom_metadata, py_cfg, voxel_materials);
           }
   
@@ -83,6 +85,11 @@ void ICtSvc::create_ct_series(const py::object& dicom_metadata,const CtTubeConfi
     m_impl->create_ct_series(dicom_metadata, cfg, voxel_materials);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+///
+DicomSvc::DicomSvc(): Configurable("DicomSvc"){
+  Configure();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
@@ -386,6 +393,21 @@ std::vector<G4double> ICustomPlan::ReadMlcPositioning(const std::string& planFil
   file.close();
   AcknowledgeMlcPositioning(side,side=="Y1" ? mlc_y1 : mlc_y2);
   return side=="Y1" ? std::move(mlc_y1) : std::move(mlc_y2);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+void DicomSvc::DefaultConfig(const std::string& unit) {
+  if (unit.compare("WindowPreset") == 0) thisConfig()->SetTValue<std::string>(unit, std::string("soft_tissue"));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+void DicomSvc::Configure() {
+  DefineUnit<std::string>("WindowPreset");
+
+  Configurable::DefaultConfig();  // setup the default configuration for all defined parameters
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////

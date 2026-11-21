@@ -28,6 +28,7 @@ class CtSvc():
         self.__step_y = 0
         self.__step_z = 0
         self.__SSD = 0
+        self.__window_preset = "soft_tissue"
 
 # -------------------------------- User Interface Methods -----------------------
 
@@ -61,6 +62,12 @@ class CtSvc():
         dictionary = (f"{self.__project_path}config/hounsfield_scale_120keV.json")
         with open(dictionary) as jsn_file:
             self.__hounsfield_units_dictionary, self.__image_type_dictionary = json.load(jsn_file)
+    def __load_window_preset(self):
+        presets_path = f"{self.__project_path}config/ct_window_presets.json"
+        with open(presets_path) as jsn_file:
+            presets = json.load(jsn_file)["window_presets"]
+        preset = presets[self.__window_preset]
+        return str(preset["WindowCenter"]), str(preset["WindowWidth"])
 # ------------------------------- Priv Class Methods ----------------------------
 
 
@@ -75,9 +82,11 @@ class CtSvc():
         self.__step_y = round(float(cfg["sizeY"]), 4)
         self.__step_z = round(float(cfg["sizeZ"]), 4)
         self.__SSD = round(float(cfg.get("SSD", 1000.0)), 4)
+        self.__window_preset = cfg.get("windowPreset", "soft_tissue")
 
     def __start_Dicom_series(self, dicom_metadata: Dataset):
         self.__set_hounsfield_dictiobnary()
+        window_center, window_width = self.__load_window_preset()
         ds = copy.deepcopy(dicom_metadata)
         self.__uid_prefix = dicom_metadata._org_uid_root
 
@@ -105,8 +114,8 @@ class CtSvc():
         ds.BitsStored = 16
         ds.HighBit = 15
         ds.PixelRepresentation = 1
-        ds.WindowCenter = "125.0"
-        ds.WindowWidth = "600.0"
+        ds.WindowCenter = window_center
+        ds.WindowWidth = window_width
         ds.RescaleIntercept = "0.0"
         ds.RescaleSlope = "1.0"
         ds.RescaleType = "HU"
