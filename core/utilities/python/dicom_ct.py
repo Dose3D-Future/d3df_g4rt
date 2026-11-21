@@ -1,28 +1,13 @@
 import datetime
-# from loguru import logger
 import os
-import time
-from sys import prefix
-import time
 import numpy as np
 import pandas as pd
 import pydicom
 import pydicom.uid
-from pydicom.dataset import Dataset, FileDataset
-from pydicom.uid import ExplicitVRLittleEndian, CTImageStorage
+from pydicom.dataset import Dataset
+from pydicom.uid import CTImageStorage
 import json
-from pathlib import Path
 import copy
-
-# def CtSvc():
-#     logger.info("Initializing CT scaner.")
-
-# def create_ct_series():
-#     logger.info("Initializing CT series.")
-
-# def set_output_path():
-#     logger.info("Setting path for CT series.")
-
 
 class CtSvc():
     __output_path = None
@@ -33,17 +18,9 @@ class CtSvc():
         print("Initializing CT scaner.")
         print()
         self.__label = label # Did I Need that?
-        self.__generate_CT = True # Did I Need that?
-        self.__output_array = np.zeros((1, 1, 1))
-        self.__data_path = ""
-        self.__plain_data = np.zeros(shape = (1*1*1, 3, ))
-        self.__data_array  = pd.DataFrame(self.__plain_data,columns=['x','y','z'])
         self.__x_min = 0
-        self.__x_max = 0
         self.__y_min = 0
-        self.__y_max = 0
         self.__z_min = 0
-        self.__z_max = 0
         self.__pixel_in_x = 0
         self.__pixel_in_y = 0
         self.__pixel_in_z = 0
@@ -97,9 +74,6 @@ class CtSvc():
         self.__step_x = round(float(cfg["sizeX"]), 4)
         self.__step_y = round(float(cfg["sizeY"]), 4)
         self.__step_z = round(float(cfg["sizeZ"]), 4)
-        self.__x_max = round(self.__x_min + self.__step_x * self.__pixel_in_x, 4)
-        self.__y_max = round(self.__y_min + self.__step_y * self.__pixel_in_y, 4)
-        self.__z_max = round(self.__z_min + self.__step_z * self.__pixel_in_z, 4)
         self.__SSD = round(float(cfg.get("SSD", 1000.0)), 4)
 
     def __start_Dicom_series(self, dicom_metadata: Dataset):
